@@ -23,7 +23,7 @@ body{display:flex;align-items:center;justify-content:center}
 .screen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:5}
 .screen.on{display:flex}
 .dim{background:rgba(3,5,15,.8)}
-.pro{color:var(--pro)} .euk{color:var(--euk)} .virus{color:var(--virus)}
+.pro{color:var(--pro)} .euk{color:var(--euk)} .virus{color:var(--virus)} .plant{color:#9dff5a} .animal{color:#ff7ab8}
 
 /* buttons */
 .btn{font-family:var(--head);font-size:16px;font-weight:700;line-height:1.2;padding:11px 18px;background:var(--panel);color:var(--paper);
@@ -98,10 +98,10 @@ table.sc th.s{text-align:right}
   <section id="title" class="screen on">
     <div class="tcol">
       <h1 class="sliced" aria-label="Cell Slice"><span class="p a" aria-hidden="true">CELL<br>SLICE</span><span class="p b" aria-hidden="true">CELL<br>SLICE</span></h1>
-      <p class="sub">Prokaryote or eukaryote? Slice the right parts, words, and organisms.</p>
+      <p class="sub">Prokaryote or eukaryote? Plant or animal? Slice the right ones.</p>
       <div class="menu">
-        <button class="btn primary" id="bPlay">Play all 8 rounds</button>
-        <button class="btn locked" id="bEndless">Endless mode<small id="endNote">Unlocks after all 8 rounds</small></button>
+        <button class="btn primary" id="bPlay">Play all 9 rounds</button>
+        <button class="btn locked" id="bEndless">Endless mode<small id="endNote">Unlocks after all 9 rounds</small></button>
         <button class="btn" id="bScores">High scores</button>
       </div>
       <div class="opts">
@@ -167,7 +167,7 @@ table.sc th.s{text-align:right}
     <div class="card">
       <h2>High scores</h2>
       <div class="tabs">
-        <button class="btn tab" id="tRounds" aria-pressed="true">8 rounds</button>
+        <button class="btn tab" id="tRounds" aria-pressed="true">9 rounds</button>
         <button class="btn tab" id="tEndless" aria-pressed="false">Endless</button>
       </div>
       <div id="scBody"></div>
@@ -183,7 +183,7 @@ table.sc th.s{text-align:right}
    Single file. Sprites are drawn in code (32x32 pixel art).
    Teacher shortcuts:  ?unlock  unlocks Endless mode
                        ?start=3 begins the rounds game at round 3
-   Rounds: 1-3 cell parts, 4 words, 5-8 pixel organisms
+   Rounds: 1-3 cell parts, 4 words, 5-6 pixel organisms, 7-9 plant vs animal
    ============================================================ */
 const W=960,H=640,TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
@@ -197,8 +197,8 @@ const params=new URLSearchParams(location.search);
 
 /* ---------- storage ---------- */
 const store={
-  get(k,d){try{const v=localStorage.getItem('cellslice.v2.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
-  set(k,v){try{localStorage.setItem('cellslice.v2.'+k,JSON.stringify(v))}catch(e){}}
+  get(k,d){try{const v=localStorage.getItem('cellslice.v3.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('cellslice.v3.'+k,JSON.stringify(v))}catch(e){}}
 };
 
 /* ---------- audio (tiny synth, no files) ---------- */
@@ -379,7 +379,7 @@ const DEFS=[
  }},
 /* ---------------- VIRUSES (not cells!) ---------------- */
 {id:'phage',name:'Bacteriophage',kind:'virus',tier:1,col:'#ff4d5e',
- why:'A virus that infects bacteria. Viruses are not cells, so they are neither prokaryotes nor eukaryotes.',
+ why:'A virus that infects bacteria. Viruses are not cells, so they are not prokaryotes, eukaryotes, plants, or animals.',
  draw(g){
   L(g,[[12,25.5],[7,30]],'#e8e0ff',1.3);L(g,[[20,25.5],[25,30]],'#e8e0ff',1.3);L(g,[[16,26],[16,30.5]],'#e8e0ff',1.3);
   Q(g,14.4,18,3.2,7.5,'#ddd0ff','#4a1a99',1);
@@ -397,7 +397,7 @@ const DEFS=[
 ];
 for(const d of DEFS){
   d.img=sprite(d.draw);d.w=d.h=96;
-  d.sets=d.kind==='virus'?['parts','orgs']:['orgs'];
+  d.sets=d.kind==='virus'?['parts','pparts','orgs']:['orgs'];
   d.has={pro:d.kind==='pro',euk:d.kind==='euk'};
 }
 
@@ -450,12 +450,15 @@ const PARTS=[
  {id:'chloro',name:'Chloroplast',kind:'euk',tier:2,colors:['#2f6a2a','#5fb04a','#c8f0a8'],
   why:'Chloroplasts do photosynthesis in plants and algae (eukaryotes). Cyanobacteria do it without them.',
   icon:['..........','..aaaaaa..','.abbbbbba.','abbcbbcbba','abbcbbcbba','abbbbbbbba','abcbbcbbba','.abbbbbba.','..aaaaaa..','..........']},
- {id:'vacuole',name:'Vacuole',kind:'euk',tier:2,colors:['#2a5e8a','#6fb3e0','#d6f0ff'],
-  why:'A vacuole stores water and nutrients. Plant cells have a giant one. Only eukaryotes have them.',
+ {id:'vacuole',name:'Large central vacuole',kind:'euk',tier:2,colors:['#2a5e8a','#6fb3e0','#d6f0ff'],
+  why:'The large central vacuole stores water and keeps plant cells firm. Animal cells and prokaryotes do not have one.',
   icon:['..aaaaaa..','.abbbbbba.','abbbbbbbba','abbcbbbbba','abbbbbbbba','abbbbbbbba','abbbbbcbba','abbbbbbbba','.abbbbbba.','..aaaaaa..']}
 ];
-for(const p of PARTS)DEFS.push({id:p.id,name:p.name,kind:p.kind,tier:p.tier,col:p.colors[1],why:p.why,img:partIcon(p.icon,p.colors),w:98,h:98,part:true,
-  sets:['parts'],has:{pro:p.kind==='pro'||p.kind==='both',euk:p.kind==='euk'||p.kind==='both'}});
+/* plant vs animal: 'both' = in plant AND animal cells, 'plant' = plant cells only. Parts not listed here (lysosome, cilia/flagella) are not used in plant vs animal rounds. */
+const PA={dna:'both',ribosome:'both',membrane:'both',cytoplasm:'both',wall:'plant',nucleus:'both',mito:'both',golgi:'both',rough:'both',smooth:'both',chloro:'plant',vacuole:'plant'};
+for(const p of PARTS){const pa=PA[p.id];DEFS.push({id:p.id,name:p.name,kind:p.kind,tier:p.tier,col:p.colors[1],why:p.why,img:partIcon(p.icon,p.colors),w:98,h:98,part:true,
+  sets:pa?['parts','pparts']:['parts'],
+  has:{pro:p.kind==='pro'||p.kind==='both',euk:p.kind==='euk'||p.kind==='both',plant:pa==='both'||pa==='plant',animal:pa==='both'}})}
 
 /* ---------- WORDS: names of modern cells and organisms, drawn as paper memo cards ---------- */
 const WORDS=[
@@ -477,11 +480,32 @@ const WORDS=[
  ['paramecium','Paramecium','euk',2,'Paramecium is a protist, a single-celled eukaryote.'],
  ['greenalgae','Green algae','euk',2,'Green algae are eukaryotes with nuclei and chloroplasts.'],
  ['seaweed','Seaweed','euk',2,'Seaweed is a type of algae, which is a eukaryote.'],
- ['fluw','Flu virus','virus',1,'Viruses are not cells: no cytoplasm and no organelles. Neither prokaryote nor eukaryote.'],
- ['coldw','Cold virus','virus',1,'Viruses are not cells, so they are neither prokaryotes nor eukaryotes.']
+ ['fluw','Flu virus','virus',1,'Viruses are not cells: no cytoplasm and no organelles. Not prokaryotes, eukaryotes, plants, or animals.'],
+ ['coldw','Cold virus','virus',1,'Viruses are not cells, so they are not prokaryotes, eukaryotes, plants, or animals.']
 ];
-for(const w of WORDS)DEFS.push({id:'w_'+w[0],name:w[1],kind:w[2],tier:w[3],col:w[2]==='pro'?'#ffb938':w[2]==='euk'?'#4cf0c0':'#ff4d5e',why:w[4],
-  img:null,w:0,h:0,word:true,smooth:true,sets:['words'],has:{pro:w[2]==='pro',euk:w[2]==='euk'}});
+const WORD_PA={liver:'animal',skin:'animal',nerve:'animal',oak:'plant'};
+for(const w of WORDS){const pa=WORD_PA[w[0]];DEFS.push({id:'w_'+w[0],name:w[1],kind:w[2],tier:w[3],col:w[2]==='pro'?'#ffb938':w[2]==='euk'?'#4cf0c0':'#ff4d5e',why:w[4],
+  img:null,w:0,h:0,word:true,smooth:true,sets:(pa||w[2]==='virus')?['words','pwords']:['words'],
+  has:{pro:w[2]==='pro',euk:w[2]==='euk',plant:pa==='plant',animal:pa==='animal'}})}
+/* plant vs animal words (only used in the plant vs animal rounds) */
+const PWORDS=[
+ ['tree','Tree','plant',1,'Trees are plants. Plant cells have cell walls, chloroplasts, and a large central vacuole.'],
+ ['grass','Grass','plant',1,'Grass is a plant. Its cells have chloroplasts and cell walls.'],
+ ['rose','Rose','plant',1,'A rose is a plant, so its cells have cell walls and chloroplasts.'],
+ ['cactus','Cactus','plant',1,'A cactus is a plant. Its cells have chloroplasts and cell walls.'],
+ ['corn','Corn plant','plant',1,'Corn is a plant. Plant cells make food in their chloroplasts.'],
+ ['fern','Fern','plant',2,'Ferns are plants. Their cells have chloroplasts and cell walls.'],
+ ['moss','Moss','plant',2,'Moss is a small plant. Its cells have cell walls and chloroplasts.'],
+ ['frog','Frog','animal',1,'Frogs are animals. Animal cells have no cell wall and no chloroplasts.'],
+ ['cat','Cat','animal',1,'Cats are animals. Animal cells have no cell walls and no chloroplasts.'],
+ ['bird','Bird','animal',1,'Birds are animals. Animal cells have no cell walls and no chloroplasts.'],
+ ['fish','Fish','animal',1,'Fish are animals. Animal cells have no cell walls and no chloroplasts.'],
+ ['ant','Ant','animal',1,'Ants are animals. Animal cells have no cell walls and no chloroplasts.'],
+ ['muscle','Muscle cell','animal',1,'Muscle cells are animal cells: no cell wall and no chloroplasts.'],
+ ['worm','Earthworm','animal',2,'Earthworms are animals. Animal cells have no cell walls.']
+];
+for(const w of PWORDS)DEFS.push({id:'w_'+w[0],name:w[1],kind:w[2],tier:w[3],col:w[2]==='plant'?'#9dff5a':'#ff7ab8',why:w[4],
+  img:null,w:0,h:0,word:true,smooth:true,sets:['pwords'],has:{pro:false,euk:false,plant:w[2]==='plant',animal:w[2]==='animal'}});
 
 /* ---------- BONUS PUP: slice the dog to earn a slow-motion charge (press SPACE to use) ---------- */
 const DOG_NAME='Bonus pup';
@@ -533,23 +557,38 @@ try{
 }catch(e){buildWordCards()}
 
 const TYPE={
-  pro:{name:'prokaryotes',single:'prokaryote',col:'#ffb938',def:'Prokaryotes are cells with NO nucleus. Their DNA floats in the cytoplasm.',partsDef:'Slice every cell part that prokaryotes have. Parts found in BOTH kinds of cells count too!'},
-  euk:{name:'eukaryotes',single:'eukaryote',col:'#4cf0c0',def:'Eukaryotes are cells WITH a nucleus and other membrane-bound organelles.',partsDef:'Slice every cell part that eukaryotes have. Parts found in BOTH kinds of cells count too!'}
+  pro:{name:'prokaryotes',single:'prokaryote',cells:'prokaryotes',col:'#ffb938',partLabel:'PROKARYOTE PARTS',
+    def:'Prokaryotes are cells with NO nucleus. Their DNA floats in the cytoplasm.',
+    partsDef:'Slice every cell part that prokaryotes have. Parts found in BOTH kinds of cells count too!',bothNote:'Parts found in BOTH kinds of cells count too!'},
+  euk:{name:'eukaryotes',single:'eukaryote',cells:'eukaryotes',col:'#4cf0c0',partLabel:'EUKARYOTE PARTS',
+    def:'Eukaryotes are cells WITH a nucleus and other membrane-bound organelles.',
+    partsDef:'Slice every cell part that eukaryotes have. Parts found in BOTH kinds of cells count too!',bothNote:'Parts found in BOTH kinds of cells count too!'},
+  plant:{name:'plants',single:'plant',cells:'plant cells',col:'#9dff5a',partLabel:'PLANT CELL PARTS',
+    def:'Plants make their own food. Their cells have cell walls, chloroplasts, and a large central vacuole.',
+    partsDef:'Slice every cell part that plant cells have. Parts found in BOTH plant and animal cells count too!',bothNote:'Parts found in BOTH plant and animal cells count too!'},
+  animal:{name:'animals',single:'animal',cells:'animal cells',col:'#ff7ab8',partLabel:'ANIMAL CELL PARTS',
+    def:'Animals eat food to live. Their cells have no cell wall, no chloroplasts, and no large central vacuole.',
+    partsDef:'Slice every cell part that animal cells have. Parts found in BOTH plant and animal cells count too!',bothNote:'Parts found in BOTH plant and animal cells count too!'}
 };
-const other=t=>t==='pro'?'euk':'pro';
+const other=t=>t==='pro'?'euk':t==='euk'?'pro':t==='plant'?'animal':'plant';
 const isTarget=d=>d.kind!=='virus'&&!!d.has[G.target];
 const curSet=()=>mode==='rounds'&&G.cfg?G.cfg.set:'mix';
-function targetLabel(){const t=TYPE[G.target];return curSet()==='parts'?'SLICE '+t.single.toUpperCase()+' PARTS':'SLICE '+t.name.toUpperCase()}
+const isPartsSet=st=>st==='parts'||st==='pparts';
+function targetLabel(){const t=TYPE[G.target];return isPartsSet(curSet())?'SLICE '+t.partLabel:'SLICE '+t.name.toUpperCase()}
+const isPA=()=>G.target==='plant'||G.target==='animal';
+const ownersOf=(d,keys)=>keys.filter(k=>d.has[k]);
+const art=w=>/^[aeiou]/i.test(w)?'an ':'a ';
 function describe(d){
-  if(d.part)return d.kind==='pro'?'a part found only in <b class="pro">prokaryotes</b>':d.kind==='euk'?'a part found only in <b class="euk">eukaryotes</b>':'a part found in both kinds of cells';
-  return 'a <b class="'+d.kind+'">'+TYPE[d.kind].single+'</b>';
+  const own=ownersOf(d,isPA()?['plant','animal']:['pro','euk']);
+  if(d.part)return own.length>1?'a part found in both kinds of cells':'a part found only in <b class="'+own[0]+'">'+TYPE[own[0]].cells+'</b>';
+  const k=own[0]||d.kind;return art(TYPE[k].single)+'<b class="'+k+'">'+TYPE[k].single+'</b>';
 }
-function targetPhrase(d){const t=TYPE[G.target];return d.part?'parts that <b class="'+G.target+'">'+t.name+'</b> have':'<b class="'+G.target+'">'+t.name+'</b>'}
-function kindTag(d){
+function targetPhrase(d){const t=TYPE[G.target];return d.part?'parts that <b class="'+G.target+'">'+t.cells+'</b> have':'<b class="'+G.target+'">'+t.name+'</b>'}
+function kindTag(d,dim){
   if(d.kind==='virus')return'<b class="virus">virus</b>';
-  if(d.kind==='both')return'<b>in both</b>';
-  if(d.part)return'<b class="'+d.kind+'">'+TYPE[d.kind].name+' only</b>';
-  return'<b class="'+d.kind+'">'+TYPE[d.kind].single+'</b>';
+  const own=ownersOf(d,dim==='pa'?['plant','animal']:['pro','euk']);
+  if(d.part)return own.length>1?'<b>in both</b>':'<b class="'+own[0]+'">'+TYPE[own[0]].cells+' only</b>';
+  const k=own[0]||d.kind;return'<b class="'+k+'">'+TYPE[k].single+'</b>';
 }
 function factColor(k){return k==='dog'?'#ffd54a':k==='virus'?'#ff4d5e':k==='both'?'#e8eefc':TYPE[k].col}
 
@@ -563,14 +602,16 @@ const ROUNDS=[
    notes:['Tougher parts this time, like the cell wall and chloroplast.','Remember: DNA, ribosomes, the membrane, cytoplasm, cilia and flagella are in BOTH kinds of cells.','Viruses are still bombs. Never slice them!']},
   {set:'words',target:'euk',quota:10,ts:.75,interval:1.7, wmin:1,wmax:2,virus:.1, tier:2,tp:.55,
    notes:['New: WORDS! Slice the names of living things that are eukaryotes.','Look out for tricky names, and for viruses.']},
-  {set:'orgs', target:'pro',quota:10,ts:.8, interval:1.5, wmin:1,wmax:3,virus:.08,tier:1,tp:.55,
-   notes:['Back to pictures: real organisms drawn in pixels.']},
-  {set:'orgs', target:'euk',quota:12,ts:.9, interval:1.5, wmin:1,wmax:3,virus:.1, tier:1,tp:.55,
-   notes:['Eukaryote organisms this time.']},
-  {set:'orgs', target:'pro',quota:12,ts:1.0, interval:1.4, wmin:2,wmax:3,virus:.12,tier:2,tp:.5,
-   notes:['Trickier microbes, and faster!','Some prokaryotes do photosynthesis or live in extreme places.']},
-  {set:'orgs', target:'euk',quota:15,ts:1.2, interval:1.35,wmin:2,wmax:3,virus:.14,tier:2,tp:.5,
-   notes:['Final round. This is the fastest one yet.']}
+  {set:'orgs', target:'pro',quota:10,ts:.8, interval:1.5, wmin:1,wmax:3,virus:.08,tier:2,tp:.55,
+   notes:['Back to pictures: real organisms drawn in pixels.','Some prokaryotes do photosynthesis or live in extreme places. Watch out!']},
+  {set:'orgs', target:'euk',quota:12,ts:.9, interval:1.5, wmin:1,wmax:3,virus:.1, tier:2,tp:.55,
+   notes:['Eukaryote organisms this time. Some make their own food, and some are fungi!']},
+  {set:'pparts',target:'animal',quota:10,ts:.85,interval:1.45,wmin:1,wmax:3,virus:.1, tier:2,tp:.6,
+   notes:['New: PLANT vs ANIMAL cells!','Animal cells have no cell wall, no chloroplasts, and no large central vacuole.','Parts that BOTH plant and animal cells have count too.']},
+  {set:'pparts',target:'plant', quota:10,ts:.9, interval:1.4, wmin:1,wmax:3,virus:.14,tier:2,tp:.7,
+   notes:['Plant cells have every part in this round, even the plant-only ones.','Viruses are still bombs!']},
+  {set:'pwords',target:'animal',quota:12,ts:.9, interval:1.7, wmin:1,wmax:2,virus:.1, tier:2,tp:.55,
+   notes:['Final round! Words: slice the names of animals.','Plants are the decoys this time. Look out for viruses too.']}
 ];
 const ENDLESS_SWITCH=20;
 function endlessCfg(sw){
@@ -588,7 +629,7 @@ const motes=Array.from({length:42},()=>({x:rand(0,W),y:rand(0,H),v:rand(4,16),p:
 let attractT=0;
 
 function newGame(){return{score:0,lives:3,combo:0,maxCombo:0,round:0,got:0,quota:0,target:'pro',cfg:null,items:[],pending:[],halves:[],parts:[],floats:[],
-  waveT:1,stats:{correct:0,wrong:0,missed:0},rs:{correct:0,wrong:0,missed:0,best:0,pts:0},wrongLog:{},fact:null,banner:null,flash:0,shake:0,
+  waveT:1,stats:{correct:0,wrong:0,missed:0},rs:{correct:0,wrong:0,missed:0,best:0,pts:0},wrongLog:{},wrongDim:{},fact:null,banner:null,flash:0,shake:0,
   lastHit:-9,chain:0,sw:0,switchT:ENDLESS_SWITCH,elapsed:0,clearT:0,warnSec:99,charges:0,slowT:0,dogT:9}}
 
 /* ---------- canvas sizing ---------- */
@@ -609,7 +650,7 @@ function toTitle(){
 }
 function refreshTitle(){
   $('bEndless').classList.toggle('locked',!unlocked);
-  $('endNote').textContent=unlocked?'Survive as long as you can':'Unlocks after all 8 rounds';
+  $('endNote').textContent=unlocked?'Survive as long as you can':'Unlocks after all 9 rounds';
   $('optSound').checked=soundOn;$('optHover').checked=hoverMode;
 }
 function fmtTime(s){return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0')}
@@ -625,8 +666,8 @@ function showIntro(summary){
   state='intro';trail=[];down=false;last=null;
   const T=TYPE[G.target],set=mode==='rounds'?ROUNDS[G.round].set:'mix';
   $('inRound').textContent=mode==='rounds'?'Round '+(G.round+1)+' of '+ROUNDS.length:'Endless mode';
-  $('inTarget').innerHTML=set==='parts'?'Slice the <span class="'+G.target+'">'+T.single+'</span> parts':'Slice the <span class="'+G.target+'">'+T.name+'</span>';
-  $('inDef').textContent=set==='parts'?T.partsDef:set==='mix'?T.def+' For cell parts, slice the parts that kind of cell has.':T.def;
+  $('inTarget').innerHTML=isPartsSet(set)?'Slice the <span class="'+G.target+'">'+T.partLabel.toLowerCase()+'</span>':'Slice the <span class="'+G.target+'">'+T.name+'</span>';
+  $('inDef').textContent=isPartsSet(set)?T.partsDef:set==='mix'?T.def+' For cell parts, slice the parts that kind of cell has.':T.def;
   let notes;
   if(mode==='endless'){
     notes=['Parts, words, and organisms all get mixed together.','The target switches every '+ENDLESS_SWITCH+' seconds, and everything speeds up.','Wrong slices and viruses cost a heart. You have 3 hearts.','Slice the bonus pup for slow-motion. Press SPACE to use it.'];
@@ -642,7 +683,7 @@ function showIntro(summary){
 }
 function announceSub(){
   const set=curSet(),T=TYPE[G.target];
-  return set==='parts'?'Parts found in BOTH kinds of cells count too!':T.def;
+  return isPartsSet(set)?T.bothNote:T.def;
 }
 function resetPlayfield(){G.items=[];G.pending=[];G.halves=[];G.parts=[];G.floats=[];G.banner=null;trail=[];last=null}
 function beginRound(){
@@ -763,11 +804,11 @@ function afterClear(){
 }
 function mistake(it,why){
   state='mistake';G.lives--;G.combo=0;G.chain=0;G.stats.wrong++;G.rs.wrong++;G.flash=.5;G.shake=reduceMotion?0:.3;
-  const d=it.def;G.wrongLog[d.id]=(G.wrongLog[d.id]||0)+1;
+  const d=it.def;G.wrongLog[d.id]=(G.wrongLog[d.id]||0)+1;G.wrongDim[d.id]=isPA()?'pa':'pe';
   const c=$('mkSprite').getContext('2d');c.imageSmoothingEnabled=!!d.smooth;c.clearRect(0,0,128,128);{const sc=Math.min(116/d.img.width,116/d.img.height),dw=d.img.width*sc,dh=d.img.height*sc;c.drawImage(d.img,64-dw/2,64-dh/2,dw,dh)}
   if(why==='virus'){
     $('mkTitle').innerHTML='<span class="virus">Bomb!</span> That was a '+d.name+'.';
-    $('mkLine').textContent='A virus is not a cell, so it is neither a prokaryote nor a eukaryote. Viruses are the bombs. Leave them alone.';
+    $('mkLine').textContent='A virus is not a cell, so it is not any of these kinds of cells. Viruses are the bombs. Leave them alone.';
   }else{
     $('mkTitle').textContent='That was '+d.name+'.';
     $('mkLine').innerHTML='This one is '+describe(d)+', but this round you are slicing '+targetPhrase(d)+'.';
@@ -805,7 +846,7 @@ function gameOver(reason){
   else $('ovLine').textContent='You lasted '+fmtTime(G.elapsed)+' and survived '+G.sw+' target switch'+(G.sw===1?'':'es')+'.';
   $('ovStats').innerHTML='<div>Score<b>'+G.score+'</b></div><div>Accuracy<b>'+acc+'%</b></div><div>Best combo<b>'+G.maxCombo+'</b></div><div>Correct<b>'+G.stats.correct+'</b></div>';
   const wl=Object.keys(G.wrongLog).map(id=>DEFS.find(d=>d.id===id)).sort((a,b)=>G.wrongLog[b.id]-G.wrongLog[a.id]).slice(0,3);
-  $('ovReview').innerHTML=wl.length?'<p class="small">Brush up on these:</p><ul>'+wl.map(d=>'<li><b>'+d.name+'</b> ('+kindTag(d)+') <span class="why">'+d.why+'</span></li>').join('')+'</ul>':'<p class="small">No mistakes to review. Nice slicing!</p>';
+  $('ovReview').innerHTML=wl.length?'<p class="small">Brush up on these:</p><ul>'+wl.map(d=>'<li><b>'+d.name+'</b> ('+kindTag(d,G.wrongDim[d.id])+') <span class="why">'+d.why+'</span></li>').join('')+'</ul>':'<p class="small">No mistakes to review. Nice slicing!</p>';
   const m=mode;pendingEntry=qualifies(m,G.score)?{m,s:G.score,x:m==='rounds'?(win?'Cleared all':'Round '+(G.round+1)):fmtTime(G.elapsed)}:null;
   $('ovEntry').hidden=!pendingEntry;$('ovInit').value='';
   showScreen('over');
@@ -859,7 +900,7 @@ addEventListener('keydown',e=>{
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseGame()});
 
 $('bPlay').onclick=()=>{ac();startRounds(params.has('start')?parseInt(params.get('start'))-1:0)};
-$('bEndless').onclick=()=>{ac();if(unlocked)startEndless();else{sfx.bad();$('endNote').textContent='Clear all 8 rounds first!'}};
+$('bEndless').onclick=()=>{ac();if(unlocked)startEndless();else{sfx.bad();$('endNote').textContent='Clear all 9 rounds first!'}};
 $('bScores').onclick=()=>{ac();showScores('rounds')};
 $('bGo').onclick=()=>{ac();beginRound()};
 $('bMk').onclick=dismissMistake;
@@ -873,7 +914,7 @@ $('ovInit').addEventListener('keydown',e=>{if(e.key==='Enter')saveEntry()});
 $('tRounds').onclick=()=>showScores('rounds');
 $('tEndless').onclick=()=>showScores('endless');
 $('bScBack').onclick=toTitle;
-$('bScClear').onclick=()=>{if(confirm('Clear all '+(scoreTab==='rounds'?'8-round':'Endless')+' high scores on this computer?')){scores[scoreTab]=[];store.set('scores',scores);showScores(scoreTab)}};
+$('bScClear').onclick=()=>{if(confirm('Clear all '+(scoreTab==='rounds'?'9-round':'Endless')+' high scores on this computer?')){scores[scoreTab]=[];store.set('scores',scores);showScores(scoreTab)}};
 $('optSound').onchange=e=>{soundOn=e.target.checked;store.set('sound',soundOn);if(soundOn)sfx.click()};
 $('optHover').onchange=e=>{hoverMode=e.target.checked;store.set('hover',hoverMode)};
 
@@ -999,9 +1040,7 @@ function drawHUD(){
   ctx.fillStyle='rgba(5,8,22,.94)';ctx.fillRect(px,py,pw,ph);
   ctx.lineWidth=4;ctx.strokeStyle=warn?'#ffffff':tc;ctx.strokeRect(px+2,py+2,pw-4,ph-4);
   const ix=px+36,iy=py+ph/2;
-  ctx.strokeStyle=tc;ctx.lineWidth=3;ctx.beginPath();ctx.arc(ix,iy,17,0,TAU);ctx.stroke();
-  if(G.target==='euk'){ctx.fillStyle=tc;ctx.beginPath();ctx.arc(ix,iy,7,0,TAU);ctx.fill()}
-  else{ctx.beginPath();ctx.moveTo(ix-10,iy+1);ctx.lineTo(ix-4,iy-6);ctx.lineTo(ix+2,iy+4);ctx.lineTo(ix+6,iy-4);ctx.lineTo(ix+10,iy);ctx.stroke()}
+  drawTargetIcon(G.target,ix,iy,tc);
   ctx.fillStyle=tc;ctx.textAlign='center';ctx.textBaseline='middle';
   {const lab=targetLabel(),fs=fitFont(lab,pw-110,HEAD,30,12);ctx.font='700 '+fs+'px '+HEAD;ctx.fillText(lab,px+pw/2+28,py+ph/2+2)}
   // progress / timer bar
@@ -1023,12 +1062,20 @@ function drawHUD(){
   ctx.textAlign='left';ctx.textBaseline='middle';
   let txt,mc='#8d9bc7';
   if(G.fact){txt=G.fact.name+': '+G.fact.why;mc=factColor(G.fact.kind)}
-  else txt=curSet()==='parts'?TYPE[G.target].partsDef:TYPE[G.target].def;
+  else txt=isPartsSet(curSet())?TYPE[G.target].partsDef:TYPE[G.target].def;
   fitFont(txt,W-110,BODY,21,13);
   ctx.fillStyle=mc;ctx.fillRect(16,H-24,8,14);ctx.fillStyle='#e8eefc';ctx.fillText(txt,34,H-16);
   drawSlowBadge();
   // pause icon
   ctx.fillStyle='#8d9bc7';ctx.fillRect(W-32,H-25,5,16);ctx.fillRect(W-23,H-25,5,16);
+}
+function drawTargetIcon(t,x,y,c){
+  ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=3;
+  if(t==='plant'){ctx.strokeRect(x-16,y-16,32,32);ctx.fillRect(x-9,y-8,7,7);ctx.fillRect(x+3,y+2,7,7);ctx.beginPath();ctx.arc(x+4,y-6,3,0,TAU);ctx.fill();return}
+  ctx.beginPath();ctx.arc(x,y,17,0,TAU);ctx.stroke();
+  if(t==='euk'){ctx.beginPath();ctx.arc(x,y,7,0,TAU);ctx.fill()}
+  else if(t==='animal'){ctx.beginPath();ctx.arc(x-2,y-1,6,0,TAU);ctx.fill();for(const[dx,dy]of[[9,6],[7,-9],[-9,8]]){ctx.beginPath();ctx.arc(x+dx,y+dy,2.2,0,TAU);ctx.fill()}}
+  else{ctx.beginPath();ctx.moveTo(x-10,y+1);ctx.lineTo(x-4,y-6);ctx.lineTo(x+2,y+4);ctx.lineTo(x+6,y-4);ctx.lineTo(x+10,y);ctx.stroke()}
 }
 function drawSlowBadge(){
   const x=16,y=H-90,w=190,h=46,on=G.charges>0||G.slowT>0;
