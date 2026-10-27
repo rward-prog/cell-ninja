@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Cell Slice: Prokaryote or Eukaryote?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#070b1c; --panel:#0d1330; --paper:#e8eefc; --dim:#8d9bc7;
+  --pro:#ffb938; --euk:#4cf0c0; --virus:#ff4d5e;
+  --head:'Silkscreen','Courier New',monospace;
+  --body:'VT323','Courier New',monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#03050f;overflow:hidden;color:var(--paper);font-family:var(--body)}
+body{display:flex;align-items:center;justify-content:center}
+#wrap{position:relative;width:960px;height:640px;flex:none;transform-origin:center center;background:#070b1c;overflow:hidden}
+#game{position:absolute;left:0;top:0;width:960px;height:640px;display:block;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none}
+
+.screen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:5}
+.screen.on{display:flex}
+.dim{background:rgba(3,5,15,.8)}
+.pro{color:var(--pro)} .euk{color:var(--euk)} .virus{color:var(--virus)}
+
+/* buttons */
+.btn{font-family:var(--head);font-size:16px;font-weight:700;line-height:1.2;padding:11px 18px;background:var(--panel);color:var(--paper);
+  border:3px solid var(--paper);box-shadow:4px 4px 0 #000;cursor:pointer;text-align:left}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 #000}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #000}
+.btn:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.btn.primary{background:var(--paper);color:var(--ink)}
+.btn small{display:block;font-family:var(--body);font-weight:400;font-size:21px;margin-top:3px;color:var(--dim)}
+.btn.locked{opacity:.6}
+.btn.ghost{border-color:var(--dim);color:var(--dim);box-shadow:none;font-size:13px;padding:8px 12px}
+
+/* title */
+#title{justify-content:flex-start;background:linear-gradient(90deg,rgba(3,5,15,.92) 0,rgba(3,5,15,.7) 48%,rgba(3,5,15,0) 76%)}
+.tcol{padding:0 56px}
+h1.sliced{position:relative;margin:0 0 14px;width:340px;height:170px;font-family:var(--head);font-weight:700;font-size:76px;line-height:85px;letter-spacing:1px;display:grid}
+h1.sliced .p{grid-area:1/1;white-space:nowrap}
+h1.sliced .a{clip-path:polygon(0 0,100% 0,100% 28%,0 72%)}
+h1.sliced .b{clip-path:polygon(0 72%,100% 28%,100% 100%,0 100%);transform:translate(8px,7px);color:var(--paper)}
+h1.sliced::after{content:'';position:absolute;left:-14px;top:72%;width:372px;height:3px;background:linear-gradient(90deg,transparent,#fff 12%,#fff 88%,transparent);
+  transform-origin:left center;transform:rotate(-12.4deg)}
+.sub{font-size:26px;line-height:1.05;margin:0;max-width:430px;color:var(--paper)}
+.menu{display:flex;flex-direction:column;gap:10px;width:370px;margin-top:16px}
+.opts{display:flex;flex-direction:column;gap:2px;margin-top:14px;font-size:21px;color:var(--dim)}
+.opts label{display:flex;align-items:center;gap:10px;cursor:pointer}
+.opts input{width:20px;height:20px;accent-color:#e8eefc}
+
+/* cards */
+.card{width:640px;max-width:92%;max-height:92%;overflow:auto;background:var(--panel);border:3px solid var(--paper);box-shadow:8px 8px 0 #000;padding:26px 30px}
+.card h2{font-family:var(--head);font-size:30px;line-height:1.15;margin:0 0 12px}
+.card p{font-size:26px;line-height:1.12;margin:8px 0}
+.card .small{font-size:22px;color:var(--dim)}
+.card ul{margin:10px 0 0;padding-left:22px;font-size:25px;line-height:1.12}
+.card li{margin:4px 0}
+.row{display:flex;gap:14px;align-items:center;margin-top:20px;flex-wrap:wrap}
+.def{font-size:34px;line-height:1.08;margin:8px 0 6px}
+#inTarget{font-size:44px;line-height:1.12;margin:6px 0 12px}
+.stats{display:flex;gap:26px;margin:10px 0 4px;flex-wrap:wrap}
+.stats div{font-size:22px;color:var(--dim)}
+.stats b{display:block;font-family:var(--head);font-size:24px;color:var(--paper);font-weight:700}
+.round-sum{margin-top:16px;padding-top:12px;border-top:3px dashed #2b3670}
+
+#mistake .card{border-color:var(--virus)}
+#mistake .mrow{display:flex;gap:22px;align-items:flex-start}
+#mkSprite{width:128px;height:128px;flex:none;image-rendering:pixelated;background:#050818;border:3px solid #2b3670}
+#mkTitle{font-size:26px}
+
+#ovReview{margin-top:6px;max-height:210px;overflow:auto}
+#ovReview li{font-size:22px}
+#ovReview .why{color:var(--dim)}
+#ovEntry{margin-top:14px;padding:12px;border:3px dashed var(--paper)}
+#ovEntry p{margin:0 0 8px}
+#ovInit{font-family:var(--head);font-size:26px;width:110px;padding:6px 8px;text-transform:uppercase;letter-spacing:5px;background:#050818;color:var(--paper);border:3px solid var(--paper);margin-right:10px}
+
+.tabs{display:flex;gap:10px;margin-bottom:12px}
+.tab[aria-pressed="true"]{background:var(--paper);color:var(--ink)}
+table.sc{width:100%;border-collapse:collapse;font-size:23px}
+table.sc th{font-family:var(--head);font-size:13px;text-align:left;color:var(--dim);padding:4px 6px;font-weight:400}
+table.sc td{padding:1px 6px;border-top:2px solid #1d2552}
+table.sc td.n{font-family:var(--head);font-size:18px;letter-spacing:3px}
+table.sc tr.me td{background:#1d2552}
+table.sc td.s{text-align:right}
+table.sc th.s{text-align:right}
+.empty{color:var(--dim);font-size:25px;margin:18px 0}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="640"></canvas>
+
+  <!-- TITLE -->
+  <section id="title" class="screen on">
+    <div class="tcol">
+      <h1 class="sliced" aria-label="Cell Slice"><span class="p a" aria-hidden="true">CELL<br>SLICE</span><span class="p b" aria-hidden="true">CELL<br>SLICE</span></h1>
+      <p class="sub">Prokaryote or eukaryote? Slice the right parts, words, and organisms.</p>
+      <div class="menu">
+        <button class="btn primary" id="bPlay">Play all 8 rounds</button>
+        <button class="btn locked" id="bEndless">Endless mode<small id="endNote">Unlocks after all 8 rounds</small></button>
+        <button class="btn" id="bScores">High scores</button>
+      </div>
+      <div class="opts">
+        <label><input type="checkbox" id="optSound"> Sound effects</label>
+        <label><input type="checkbox" id="optHover"> Slice without clicking (for trackpads)</label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROUND INTRO -->
+  <section id="intro" class="screen dim">
+    <div class="card">
+      <p class="small" id="inRound"></p>
+      <h2 id="inTarget"></h2>
+      <p class="def" id="inDef"></p>
+      <ul id="inNotes"></ul>
+      <div id="inSummary"></div>
+      <div class="row"><button class="btn primary" id="bGo">Start</button></div>
+    </div>
+  </section>
+
+  <!-- MISTAKE -->
+  <section id="mistake" class="screen dim">
+    <div class="card">
+      <div class="mrow">
+        <canvas id="mkSprite" width="128" height="128"></canvas>
+        <div>
+          <h2 id="mkTitle"></h2>
+          <p id="mkLine"></p>
+          <p class="small" id="mkWhy"></p>
+        </div>
+      </div>
+      <div class="row"><button class="btn primary" id="bMk">Keep slicing</button><span class="small" id="mkLives"></span></div>
+    </div>
+  </section>
+
+  <!-- PAUSE -->
+  <section id="pause" class="screen dim">
+    <div class="card" style="width:420px">
+      <h2>Paused</h2>
+      <div class="row"><button class="btn primary" id="bResume">Resume</button><button class="btn" id="bQuit">Quit to title</button></div>
+    </div>
+  </section>
+
+  <!-- GAME OVER -->
+  <section id="over" class="screen dim">
+    <div class="card">
+      <h2 id="ovTitle"></h2>
+      <p id="ovLine"></p>
+      <div class="stats" id="ovStats"></div>
+      <div id="ovReview"></div>
+      <div id="ovEntry" hidden>
+        <p>New high score! Enter 3 initials.</p>
+        <input id="ovInit" maxlength="3" autocomplete="off" spellcheck="false" aria-label="Your initials">
+        <button class="btn" id="bSave">Save score</button>
+      </div>
+      <div class="row"><button class="btn primary" id="bAgain">Play again</button><button class="btn" id="bToTitle">Title screen</button></div>
+    </div>
+  </section>
+
+  <!-- SCORES -->
+  <section id="scores" class="screen dim">
+    <div class="card">
+      <h2>High scores</h2>
+      <div class="tabs">
+        <button class="btn tab" id="tRounds" aria-pressed="true">8 rounds</button>
+        <button class="btn tab" id="tEndless" aria-pressed="false">Endless</button>
+      </div>
+      <div id="scBody"></div>
+      <div class="row"><button class="btn primary" id="bScBack">Back</button><button class="btn ghost" id="bScClear">Clear this list</button></div>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+/* ============================================================
+   CELL SLICE: prokaryote vs eukaryote slicing game
+   Single file. Sprites are drawn in code (32x32 pixel art).
+   Teacher shortcuts:  ?unlock  unlocks Endless mode
+                       ?start=3 begins the rounds game at round 3
+   Rounds: 1-3 cell parts, 4 words, 5-8 pixel organisms
+   ============================================================ */
+const W=960,H=640,TAU=Math.PI*2;
+const $=id=>document.getElementById(id);
+const rand=(a,b)=>a+Math.random()*(b-a);
+const randInt=(a,b)=>Math.floor(rand(a,b+1));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const HEAD="'Silkscreen','Courier New',monospace";
+const BODY="'VT323','Courier New',monospace";
+const reduceMotion=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params=new URLSearchParams(location.search);
+
+/* ---------- storage ---------- */
+const store={
+  get(k,d){try{const v=localStorage.getItem('cellslice.v2.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('cellslice.v2.'+k,JSON.stringify(v))}catch(e){}}
+};
+
+/* ---------- audio (tiny synth, no files) ---------- */
+let AC=null,soundOn=store.get('sound',true),nbuf=null;
+function ac(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume();
+  return AC;
+}
+function tone(freq,dur,type,vol,slide,delay){
+  if(!soundOn)return;const a=ac();if(!a)return;
+  const t=a.currentTime+(delay||0),o=a.createOscillator(),g=a.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(freq,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide),t+dur);
+  g.gain.setValueAtTime(vol||0.06,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+0.03);
+}
+function noise(dur,vol,hp,delay){
+  if(!soundOn)return;const a=ac();if(!a)return;
+  if(!nbuf){nbuf=a.createBuffer(1,Math.floor(a.sampleRate*0.7),a.sampleRate);const d=nbuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+  const t=a.currentTime+(delay||0),s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();
+  s.buffer=nbuf;f.type='highpass';f.frequency.value=hp;
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  s.connect(f);f.connect(g);g.connect(a.destination);s.start(t);s.stop(t+dur+0.03);
+}
+const sfx={
+  slice(){noise(0.09,0.05,2600)},
+  good(c){tone(523*Math.pow(2,Math.min(c,12)/12),0.13,'square',0.06)},
+  bad(){tone(190,0.4,'sawtooth',0.09,-120);noise(0.25,0.06,300)},
+  boom(){noise(0.55,0.12,120);tone(95,0.5,'sawtooth',0.1,-60)},
+  clear(){[523,659,784,1047].forEach((f,i)=>tone(f,0.17,'square',0.06,0,i*0.1))},
+  over(){[392,330,262,196].forEach((f,i)=>tone(f,0.22,'triangle',0.1,0,i*0.18))},
+  warn(){tone(880,0.07,'square',0.04)},
+  swap(){tone(440,0.1,'square',0.06);tone(660,0.14,'square',0.06,0,0.1)},
+  click(){tone(660,0.05,'square',0.04)},
+  bonus(){[660,880,1320].forEach((f,i)=>tone(f,.1,'square',.06,0,i*.07))},
+  slow(){tone(700,.6,'sine',.09,-480);tone(350,.6,'triangle',.06,-200)},
+  slowEnd(){tone(300,.25,'sine',.07,350)}
+};
+
+/* ---------- pixel sprites drawn in code ---------- */
+const S=32;
+function crisp(c){const g=c.getContext('2d'),d=g.getImageData(0,0,S,S),p=d.data;for(let i=3;i<p.length;i+=4)p[i]=p[i]>100?255:0;g.putImageData(d,0,0)}
+function sprite(fn){const c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');fn(g);crisp(c);return c}
+function E(g,x,y,rx,ry,rot,fill,stroke,lw){g.beginPath();g.ellipse(x,y,rx,ry,rot||0,0,TAU);if(fill){g.fillStyle=fill;g.fill()}if(stroke){g.lineWidth=lw||1.6;g.strokeStyle=stroke;g.stroke()}}
+function C(g,x,y,r,fill,stroke,lw){E(g,x,y,r,r,0,fill,stroke,lw)}
+function L(g,pts,col,w){g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);g.strokeStyle=col;g.lineWidth=w||1.6;g.lineCap='round';g.lineJoin='round';g.stroke()}
+function P(g,pts,fill,stroke,lw){g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);g.closePath();if(fill){g.fillStyle=fill;g.fill()}if(stroke){g.lineWidth=lw||1.6;g.lineJoin='round';g.strokeStyle=stroke;g.stroke()}}
+function Q(g,x,y,w,h,fill,stroke,lw){g.beginPath();g.rect(x,y,w,h);if(fill){g.fillStyle=fill;g.fill()}if(stroke){g.lineWidth=lw||1.4;g.strokeStyle=stroke;g.stroke()}}
+
+const DEFS=[
+/* ---------------- PROKARYOTES ---------------- */
+{id:'ecoli',name:'E. coli',kind:'pro',tier:1,col:'#ff7f9c',
+ why:'A bacterium. No nucleus: its DNA floats loose in the cytoplasm.',
+ draw(g){
+  L(g,[[8,21],[5,24],[4,27],[6,30]],'#ffd0da',1.3);L(g,[[10,23],[9,27],[11,29]],'#ffd0da',1.3);L(g,[[24,10],[27,8],[26,5]],'#ffd0da',1.3);
+  E(g,16,16,10,5.2,-0.6,'#ff7f9c','#8a2540');
+  L(g,[[11,19],[13,16],[15,19],[17,15],[20,17]],'#8a2540',1.2);
+  Q(g,18,10.5,3,1.4,'#ffc2cf');
+ }},
+{id:'strep',name:'Streptococcus',kind:'pro',tier:1,col:'#a29bff',
+ why:'Bacteria that grow in chains. Prokaryotes: no nucleus, no membrane-bound organelles.',
+ draw(g){
+  const pts=[[5,22],[10,17],[16,14],[22,15.5],[27,20]];
+  for(const p of pts)C(g,p[0],p[1],3.7,'#a29bff','#41318f');
+  for(const p of pts)Q(g,p[0]-1.8,p[1]-2.4,1.8,1.4,'#d8d4ff');
+ }},
+{id:'staph',name:'Staphylococcus',kind:'pro',tier:1,col:'#f0c93a',
+ why:'Bacteria that cluster like grapes. Prokaryotic: DNA is not wrapped in a nucleus.',
+ draw(g){
+  const pts=[[16,8.5],[9,13],[23,13],[6,20],[16,17],[26,20],[11,25],[21,25]];
+  for(const p of pts)C(g,p[0],p[1],4.2,'#f0c93a','#7a5a0a');
+  for(const p of pts)Q(g,p[0]-2.2,p[1]-2.6,1.8,1.4,'#fff1a8');
+ }},
+{id:'lacto',name:'Lactobacillus',kind:'pro',tier:1,col:'#b9ee8a',
+ why:'The bacteria that help make yogurt. Simple prokaryotic cells with no nucleus.',
+ draw(g){
+  E(g,9,10.5,6.5,3.2,0.45,'#b9ee8a','#3f7d22');E(g,21,16,6.5,3.2,-0.35,'#b9ee8a','#3f7d22');E(g,11,24,6.5,3.2,0.2,'#b9ee8a','#3f7d22');
+  L(g,[[6,10],[9,11],[12,10]],'#3f7d22',1);L(g,[[18,17],[21,15],[24,16]],'#3f7d22',1);L(g,[[8,24],[11,25],[14,24]],'#3f7d22',1);
+ }},
+{id:'cyano',name:'Cyanobacteria',kind:'pro',tier:2,col:'#2ec4b6',
+ why:'They make food by photosynthesis, but they are bacteria: no nucleus, no chloroplasts.',
+ draw(g){
+  for(let i=0;i<7;i++){const x=4+i*4,y=16+Math.sin(i*0.95)*5;C(g,x,y,3.3,i===3?'#a6f5e0':'#2ec4b6','#0b5f5a');Q(g,x-1.6,y-2.2,1.6,1.3,'#bff7ea')}
+ }},
+{id:'spiril',name:'Spirillum',kind:'pro',tier:2,col:'#ffb347',
+ why:'A spiral-shaped bacterium. Prokaryotes can be rods, spheres, or spirals.',
+ draw(g){
+  const pts=[];for(let x=4;x<=29;x+=0.6)pts.push([x,16+Math.sin((x-4)*0.65)*6]);
+  L(g,pts,'#8a4a08',4.6);L(g,pts,'#ffb347',2.6);
+  L(g,[[4,16],[1.5,13]],'#ffe0b0',1.2);L(g,[[4,16],[1.2,18.5]],'#ffe0b0',1.2);L(g,[[4,16],[1,16]],'#ffe0b0',1.2);
+ }},
+{id:'vibrio',name:'Vibrio',kind:'pro',tier:2,col:'#5ab8ff',
+ why:'A comma-shaped bacterium. It is a prokaryote: DNA floats in the cytoplasm.',
+ draw(g){
+  g.beginPath();g.arc(16,23,11,Math.PI+0.5,TAU-0.5);g.lineCap='round';g.strokeStyle='#17508a';g.lineWidth=6.6;g.stroke();
+  g.beginPath();g.arc(16,23,11,Math.PI+0.5,TAU-0.5);g.strokeStyle='#5ab8ff';g.lineWidth=4.2;g.stroke();
+  L(g,[[25.6,17.7],[28,14.5],[26.5,11.5],[29,8]],'#c8e6ff',1.3);
+ }},
+{id:'archaea',name:'Archaea',kind:'pro',tier:2,col:'#d65cff',
+ why:'Archaea look like bacteria and are prokaryotes too: no nucleus. Many live in salty or hot places.',
+ draw(g){
+  P(g,[[10,7],[22,7],[26,11],[26,21],[22,25],[10,25],[6,21],[6,11]],'#d65cff','#6a1c8f');
+  C(g,16,16,4.2,null,'#f6d2ff',1.3);
+  Q(g,10,10,2,2,'#fff');Q(g,20,13,2,2,'#fff');Q(g,12,20,2,2,'#fff');Q(g,21,20,1.6,1.6,'#fff');
+ }},
+/* ---------------- EUKARYOTES ---------------- */
+{id:'amoeba',name:'Amoeba',kind:'euk',tier:1,col:'#8fe3d0',
+ why:'A single-celled eukaryote with a nucleus. It moves by stretching out pseudopods.',
+ draw(g){
+  const b=[[16,16,9],[7,12,4.6],[25,8.5,4],[26.5,22,4.6],[10,26.5,4],[4,20,3.2],[17,4.5,3.2]];
+  for(const o of b)C(g,o[0],o[1],o[2]+0.9,'#2a7f78');
+  for(const o of b)C(g,o[0],o[1],o[2],'#8fe3d0');
+  C(g,15.5,16,3.8,'#3b4fa0','#1a2466');C(g,14.5,15,1.2,'#a8b6ff');
+  C(g,21.5,19.5,2.1,'#dffff7','#3aa59a',1.1);C(g,10.5,19.5,1.8,'#dffff7','#3aa59a',1.1);
+ }},
+{id:'parame',name:'Paramecium',kind:'euk',tier:1,col:'#b7c6ff',
+ why:'A single-celled eukaryote covered in cilia, with a nucleus and organelles.',
+ draw(g){
+  const rot=-0.4,rx=12,ry=6;
+  for(let t=0;t<TAU;t+=0.34){
+    const ca=Math.cos(t),sa=Math.sin(t),cr=Math.cos(rot),sr=Math.sin(rot);
+    const x1=16+rx*ca*cr-ry*sa*sr,y1=16+rx*ca*sr+ry*sa*cr;
+    const x2=16+(rx+2.6)*ca*cr-(ry+2.6)*sa*sr,y2=16+(rx+2.6)*ca*sr+(ry+2.6)*sa*cr;
+    L(g,[[x1,y1],[x2,y2]],'#7d8de0',1.2);
+  }
+  E(g,16,16,rx,ry,rot,'#b7c6ff','#4a5ab5');
+  E(g,16,16,3.6,2.4,rot,'#6a4bb8','#3a2680',1);
+  L(g,[[8.5,14],[13,16.5]],'#4a5ab5',1.3);
+  C(g,22,11.8,1.6,'#eef2ff','#4a5ab5',1);C(g,10,20.5,1.6,'#eef2ff','#4a5ab5',1);
+ }},
+{id:'yeast',name:'Yeast',kind:'euk',tier:1,col:'#f0c27a',
+ why:'A fungus. Its cells are eukaryotic with a nucleus, and it reproduces by budding.',
+ draw(g){
+  C(g,23.5,9.5,4.6,'#f0c27a','#8a5a1e');
+  C(g,13.5,17.5,9.2,'#f0c27a','#8a5a1e');
+  C(g,12.5,18.5,3.2,'#9a5a30','#5a2c14',1.2);C(g,11.5,17.5,1,'#e0b090');
+  C(g,17.5,13.5,2,'#fff0cc','#8a5a1e',1);Q(g,8,12,2.6,1.4,'#fff0cc');
+ }},
+{id:'mush',name:'Mushroom',kind:'euk',tier:1,col:'#e0444f',
+ why:'A fungus, not a plant. Its cells are eukaryotic, with nuclei.',
+ draw(g){
+  Q(g,12.5,16,7,11.5,'#f6ead2','#8a7a58');
+  g.beginPath();g.ellipse(16,17,13,11,0,Math.PI,TAU);g.closePath();g.fillStyle='#e0444f';g.fill();g.lineWidth=1.6;g.strokeStyle='#7a1520';g.stroke();
+  C(g,10.5,12.5,2.3,'#fff');C(g,18.5,9.5,2.8,'#fff');C(g,23.5,14,1.7,'#fff');C(g,6.5,15,1.2,'#fff');
+ }},
+{id:'euglena',name:'Euglena',kind:'euk',tier:2,col:'#6ee26e',
+ why:'A eukaryote with a nucleus and chloroplasts. It swims with a flagellum.',
+ draw(g){
+  L(g,[[24.5,13],[27.5,10],[26,7],[29,4]],'#bdf7bd',1.5);
+  E(g,15,18,10,4.8,-0.45,'#6ee26e','#1f7a2a');
+  C(g,15.5,18,2.8,'#3a4ba8','#1c2670',1);
+  C(g,10.5,19.5,1.5,'#1a8a3a');C(g,13.5,15.5,1.5,'#1a8a3a');C(g,18.5,21,1.5,'#1a8a3a');C(g,19.5,16.5,1.4,'#1a8a3a');
+  C(g,22.3,14.6,1.3,'#ff3b3b');
+ }},
+{id:'volvox',name:'Volvox',kind:'euk',tier:2,col:'#a6ecb0',
+ why:'A colony of eukaryotic algae cells. Each cell has a nucleus and chloroplasts.',
+ draw(g){
+  C(g,16,16,13.2,'#a6ecb0','#2f8a45');C(g,16,16,10,'#d8fadf');
+  for(let k=0;k<18;k++){const a=k*TAU/18;C(g,16+11.6*Math.cos(a),16+11.6*Math.sin(a),1.5,'#2f9a4a')}
+  C(g,12,14,2.7,'#5fcf7a','#2f8a45',1);C(g,20,18,2.3,'#5fcf7a','#2f8a45',1);C(g,14.5,21,1.9,'#5fcf7a','#2f8a45',1);
+ }},
+{id:'diatom',name:'Diatom',kind:'euk',tier:2,col:'#f0c040',
+ why:'Algae with a glassy shell. Eukaryotic: each cell has a nucleus and chloroplasts.',
+ draw(g){
+  E(g,16,16,13.2,6.8,0.25,'#f0c040','#8a5f10');
+  g.save();g.translate(16,16);g.rotate(0.25);
+  for(let i=-5;i<=5;i++){const x=i*2.3,h=6.8*Math.sqrt(Math.max(0,1-(x/13.2)*(x/13.2)))-1.4;if(h>0.6)L(g,[[x,-h],[x,h]],'#b4851c',1.1)}
+  L(g,[[-11,0],[11,0]],'#b4851c',1.2);
+  g.restore();
+ }},
+{id:'cheek',name:'Human cheek cell',kind:'euk',tier:2,col:'#ffc7b0',
+ why:'Your own cells are eukaryotic: your DNA is stored inside a nucleus.',
+ draw(g){
+  P(g,[[5,14],[9,6],[19,5],[27,10],[28,19],[22,27],[12,27],[5,21]],'#ffc7b0','#a8584a');
+  C(g,16,16,4.8,'#9b5fb0','#5a2a78');C(g,15,15,1.5,'#3c1a50');
+  C(g,9.5,20,0.9,'#d68a78');C(g,23,22,0.9,'#d68a78');C(g,22.5,10,0.9,'#d68a78');
+ }},
+/* ---------------- VIRUSES (not cells!) ---------------- */
+{id:'phage',name:'Bacteriophage',kind:'virus',tier:1,col:'#ff4d5e',
+ why:'A virus that infects bacteria. Viruses are not cells, so they are neither prokaryotes nor eukaryotes.',
+ draw(g){
+  L(g,[[12,25.5],[7,30]],'#e8e0ff',1.3);L(g,[[20,25.5],[25,30]],'#e8e0ff',1.3);L(g,[[16,26],[16,30.5]],'#e8e0ff',1.3);
+  Q(g,14.4,18,3.2,7.5,'#ddd0ff','#4a1a99',1);
+  P(g,[[12,25],[20,25],[18.5,27.5],[13.5,27.5]],'#b894ff','#4a1a99',1);
+  P(g,[[16,2.5],[22.5,6],[22.5,13.5],[16,17.5],[9.5,13.5],[9.5,6]],'#ff4d5e','#7a0f20');
+  L(g,[[9.5,6],[16,10],[22.5,6]],'#ffa0aa',1);L(g,[[16,10],[16,17.5]],'#ffa0aa',1);
+ }},
+{id:'flu',name:'Flu virus',kind:'virus',tier:1,col:'#a6ff3a',
+ why:'Viruses are not cells: no cytoplasm and no organelles. They cannot live on their own.',
+ draw(g){
+  for(let k=0;k<16;k++){const a=k*TAU/16,x1=16+9*Math.cos(a),y1=16+9*Math.sin(a),x2=16+13.2*Math.cos(a),y2=16+13.2*Math.sin(a);L(g,[[x1,y1],[x2,y2]],'#e4ffb0',1.5);C(g,x2,y2,1.1,'#e4ffb0')}
+  C(g,16,16,9.4,'#a6ff3a','#3f7a0a');
+  L(g,[[11,13],[14,16],[12,19],[16,21]],'#3f7a0a',1.3);L(g,[[19,11],[21,15],[18,17],[21,20]],'#3f7a0a',1.3);
+ }}
+];
+for(const d of DEFS){
+  d.img=sprite(d.draw);d.w=d.h=96;
+  d.sets=d.kind==='virus'?['parts','orgs']:['orgs'];
+  d.has={pro:d.kind==='pro',euk:d.kind==='euk'};
+}
+
+/* ---------- cell PARTS: icons reused from The Nucleus Desk (10x10 grids, 3-color palettes) ---------- */
+function partIcon(rows,colors){
+  const c=document.createElement('canvas');c.width=c.height=14;const g=c.getContext('2d');
+  g.fillStyle='#110e12';g.fillRect(0,0,14,14);g.fillStyle='#d3c497';g.fillRect(1,1,12,12);
+  const pal={a:colors[0],b:colors[1],c:colors[2]};
+  for(let y=0;y<10;y++)for(let x=0;x<10;x++){const ch=rows[y][x];if(pal[ch]){g.fillStyle=pal[ch];g.fillRect(x+2,y+2,1,1)}}
+  return c;
+}
+/* kind: 'both' = found in prokaryotes AND eukaryotes, 'pro' = prokaryotes only, 'euk' = eukaryotes only */
+const PARTS=[
+ {id:'dna',name:'DNA',kind:'both',tier:1,colors:['#5e3a86','#a35fc9','#f0c8ff'],
+  why:'Both kinds of cells have DNA. Prokaryotes: it floats free. Eukaryotes: it sits inside a nucleus.',
+  icon:['a.......b.','.a.....b..','..accab...','...ab.....','..b.a.....','.b...a....','b.....a...','.b...a....','..bccab...','...b.a....']},
+ {id:'ribosome',name:'Ribosome',kind:'both',tier:1,colors:['#7a3e22','#c46a3a','#f2b48a'],
+  why:'Both kinds of cells have ribosomes. They build proteins in every living cell.',
+  icon:['..........','...aaaa...','..aaccaa..','..aaaaaa..','...bbbb...','..bbbbbb..','.bbbbbbbb.','.bbbbbbbb.','..bbbbbb..','..........']},
+ {id:'membrane',name:'Cell membrane',kind:'both',tier:1,colors:['#22607d','#56a7c9','#bfe8f7'],
+  why:'Every cell has a cell membrane. It controls what goes in and out.',
+  icon:['..........','cccccccccc','aaaaaaaaaa','a.a.a.a.a.','..........','.a.a.a.a.a','aaaaaaaaaa','cccccccccc','..........','..........']},
+ {id:'cytoplasm',name:'Cytoplasm',kind:'both',tier:1,colors:['#2f6e4e','#7cc49a','#d4f5df'],
+  why:'Every cell has cytoplasm, the jelly-like fluid that fills it.',
+  icon:['..........','.c....aa..','......aa..','...c......','.aa....c..','.aa.......','.....c..a.','..c.......','.......c..','..........']},
+ {id:'wall',name:'Cell wall',kind:'both',tier:2,colors:['#6b5a2a','#a68f45','#d9c27a'],
+  why:'Bacteria have cell walls. Plants and fungi (eukaryotes) do too. Animal cells do not.',
+  icon:['aaaaaaaaaa','b...b...b.','aaaaaaaaaa','..b...b...','aaaaaaaaaa','b...b...b.','aaaaaaaaaa','..b...b...','aaaaaaaaaa','..........']},
+ {id:'cilia',name:'Cilia and flagella',kind:'both',tier:1,colors:['#7d5f14','#d4a52a','#f5dc8a'],
+  why:'Cilia and flagella help cells move. Both prokaryotes and eukaryotes have these moving structures.',
+  icon:['.a.a.a.a..','.a.a.a.a..','bbbbbbbbb.','bccbbbbbb.','bbbbbbbbb.','...a......','..a.......','...a......','..a.......','...a......']},
+ {id:'nucleus',name:'Nucleus',kind:'euk',tier:1,colors:['#3e3080','#7a62c4','#d7c9ff'],
+  why:'A nucleus holds the DNA. Only eukaryotes have one. Prokaryotes have no nucleus.',
+  icon:['...aaaa...','..abbbba..','.abbbbbba.','.abbccbba.','.abbccbba.','.abbbbbba.','..abbbba..','...aaaa...','..........','..........']},
+ {id:'mito',name:'Mitochondria',kind:'euk',tier:1,colors:['#8a3214','#e0643a','#ffc09a'],
+  why:'Mitochondria make ATP energy. Eukaryotes have them. Prokaryotes do not.',
+  icon:['..........','..aaaaaa..','.abbbbbba.','ab.c.c.cba','abc.c.c.ba','ab.c.c.cba','abc.c.c.ba','.abbbbbba.','..aaaaaa..','..........']},
+ {id:'golgi',name:'Golgi apparatus',kind:'euk',tier:1,colors:['#1f5e5e','#4fb0a8','#c8f2ec'],
+  why:'The Golgi packages and ships proteins. Only eukaryotes have this organelle.',
+  icon:['..........','.aaaaaaaa.','a........a','..aaaaaa..','.a......a.','...aaaa...','..a....a..','....cc....','...c..c...','..........']},
+ {id:'lysosome',name:'Lysosome',kind:'euk',tier:1,colors:['#4f5e14','#98b03a','#e4f2a0'],
+  why:'Lysosomes digest waste and old parts. They are found in eukaryote cells.',
+  icon:['...aaaa...','..abbbba..','.abcbbcba.','.abbbbbba.','.abbcbbba.','.abbbbcba.','.abcbbbba.','..abbbba..','...aaaa...','..........']},
+ {id:'rough',name:'Rough ER',kind:'euk',tier:2,colors:['#7d2f50','#c95f87','#ffd0e0'],
+  why:'Rough ER folds proteins. It is a membrane-bound organelle, so only eukaryotes have it.',
+  icon:['c.c.c.c.c.','aaaaaaaaa.','.........a','.aaaaaaaa.','a.c.c.c.c.','aaaaaaaaa.','.........a','.aaaaaaaaa','c.c.c.c.c.','..........']},
+ {id:'smooth',name:'Smooth ER',kind:'euk',tier:2,colors:['#94466e','#d98ab0','#fbe0ee'],
+  why:'Smooth ER makes fats and breaks down toxins. Only eukaryotes have it.',
+  icon:['..aaa.....','.a...a....','a.....a..a','.......aa.','...aaa....','..a...a...','.a.....a.a','a.......a.','..........','..........']},
+ {id:'chloro',name:'Chloroplast',kind:'euk',tier:2,colors:['#2f6a2a','#5fb04a','#c8f0a8'],
+  why:'Chloroplasts do photosynthesis in plants and algae (eukaryotes). Cyanobacteria do it without them.',
+  icon:['..........','..aaaaaa..','.abbbbbba.','abbcbbcbba','abbcbbcbba','abbbbbbbba','abcbbcbbba','.abbbbbba.','..aaaaaa..','..........']},
+ {id:'vacuole',name:'Vacuole',kind:'euk',tier:2,colors:['#2a5e8a','#6fb3e0','#d6f0ff'],
+  why:'A vacuole stores water and nutrients. Plant cells have a giant one. Only eukaryotes have them.',
+  icon:['..aaaaaa..','.abbbbbba.','abbbbbbbba','abbcbbbbba','abbbbbbbba','abbbbbbbba','abbbbbcbba','abbbbbbbba','.abbbbbba.','..aaaaaa..']}
+];
+for(const p of PARTS)DEFS.push({id:p.id,name:p.name,kind:p.kind,tier:p.tier,col:p.colors[1],why:p.why,img:partIcon(p.icon,p.colors),w:98,h:98,part:true,
+  sets:['parts'],has:{pro:p.kind==='pro'||p.kind==='both',euk:p.kind==='euk'||p.kind==='both'}});
+
+/* ---------- WORDS: names of modern cells and organisms, drawn as paper memo cards ---------- */
+const WORDS=[
+ ['bacteria','Bacteria','pro',1,'Bacteria are prokaryotes: single cells with no nucleus.'],
+ ['ecoli','E. coli','pro',1,'E. coli is a bacterium, so it is a prokaryote.'],
+ ['yogurt','Yogurt bacteria','pro',1,'The bacteria that make yogurt are prokaryotes.'],
+ ['salmonella','Salmonella','pro',1,'Salmonella is a bacterium, so it is a prokaryote.'],
+ ['archaea','Archaea','pro',2,'Archaea are prokaryotes. They have no nucleus, even in extreme places.'],
+ ['cyano','Cyanobacteria','pro',2,'Cyanobacteria are bacteria that do photosynthesis. Prokaryotes!'],
+ ['bgalgae','Blue-green algae','pro',2,'Tricky name! It is really cyanobacteria, a bacterium. Prokaryote.'],
+ ['liver','Human liver cell','euk',1,'Human cells are eukaryotic. They have a nucleus.'],
+ ['mushroom','Mushroom','euk',1,'Mushrooms are fungi. Fungus cells are eukaryotic.'],
+ ['protist','Protist','euk',1,'Protists are mostly single-celled eukaryotes with a nucleus.'],
+ ['yeast','Yeast','euk',1,'Yeast is a single-celled fungus. It is a eukaryote.'],
+ ['oak','Oak leaf cell','euk',1,'Plant cells are eukaryotic, with a nucleus and chloroplasts.'],
+ ['amoeba','Amoeba','euk',1,'Amoebas are protists: eukaryotes with a nucleus.'],
+ ['skin','Human skin cell','euk',1,'Skin cells are eukaryotic cells with a nucleus.'],
+ ['nerve','Human nerve cell','euk',2,'Nerve cells are human cells, so they are eukaryotic.'],
+ ['paramecium','Paramecium','euk',2,'Paramecium is a protist, a single-celled eukaryote.'],
+ ['greenalgae','Green algae','euk',2,'Green algae are eukaryotes with nuclei and chloroplasts.'],
+ ['seaweed','Seaweed','euk',2,'Seaweed is a type of algae, which is a eukaryote.'],
+ ['fluw','Flu virus','virus',1,'Viruses are not cells: no cytoplasm and no organelles. Neither prokaryote nor eukaryote.'],
+ ['coldw','Cold virus','virus',1,'Viruses are not cells, so they are neither prokaryotes nor eukaryotes.']
+];
+for(const w of WORDS)DEFS.push({id:'w_'+w[0],name:w[1],kind:w[2],tier:w[3],col:w[2]==='pro'?'#ffb938':w[2]==='euk'?'#4cf0c0':'#ff4d5e',why:w[4],
+  img:null,w:0,h:0,word:true,smooth:true,sets:['words'],has:{pro:w[2]==='pro',euk:w[2]==='euk'}});
+
+/* ---------- BONUS PUP: slice the dog to earn a slow-motion charge (press SPACE to use) ---------- */
+const DOG_NAME='Bonus pup';
+/* To use a real photo: paste a data: URL between the quotes below, or put a file named dog.jpg next to this HTML file. */
+const DOG_SRC='';
+const DOG={id:'dog',name:DOG_NAME,kind:'dog',tier:1,col:'#ffd54a',why:'Slicing the dog gives you a slow-motion charge. Press SPACE to use it.',
+  img:null,w:112,h:112,smooth:true,sets:[],has:{pro:false,euk:false}};
+DEFS.push(DOG);
+const DOG_ART=['................','.DD..........DD.','DDDD........DDDD','DDDDTTTTTTTTDDDD','DDDTTTTTTTTTTDDD','DDDTTTTTTTTTTDDD','.DDTTKKTTKKTTDD.','.DDTTKKTTKKTTDD.','..DTTMMMMMMTTD..','...TTMMNNMMTT...','....TMMMMMMT....','.....MMMMMM.....','......MPPM......','................','................','................'];
+function buildDog(photo){
+  const sc=2,sz=112,c=document.createElement('canvas');c.width=c.height=sz*sc;const g=c.getContext('2d');g.scale(sc,sc);
+  const circle=r=>{g.beginPath();g.arc(56,56,r,0,TAU)};
+  g.fillStyle='#110e12';circle(56);g.fill();g.fillStyle='#ffd54a';circle(53);g.fill();
+  g.save();circle(47);g.clip();
+  if(photo){const k=Math.max(94/photo.width,94/photo.height),dw=photo.width*k,dh=photo.height*k;g.drawImage(photo,56-dw/2,56-dh/2,dw,dh)}
+  else{
+    g.fillStyle='#9fd8ff';g.fillRect(0,0,sz,sz);
+    const pal={D:'#7a4a24',T:'#c98a4b',M:'#f3deb8',K:'#1b1210',N:'#1b1210',P:'#e86a7a'};
+    for(let y=0;y<16;y++)for(let x=0;x<16;x++){const ch=DOG_ART[y][x];if(pal[ch]){g.fillStyle=pal[ch];g.fillRect(8+x*6,10+y*6,6,6)}}
+  }
+  g.restore();
+  g.strokeStyle='#110e12';g.lineWidth=2;circle(47);g.stroke();
+  /* small paw badge */
+  g.fillStyle='#110e12';g.beginPath();g.arc(92,92,15,0,TAU);g.fill();g.fillStyle='#ffd54a';g.beginPath();g.arc(92,92,13,0,TAU);g.fill();
+  g.fillStyle='#110e12';g.beginPath();g.ellipse(92,96,6,4.5,0,0,TAU);g.fill();
+  for(const [dx,dy] of[[-6,-1],[-2,-6],[3,-6],[7,-1]]){g.beginPath();g.arc(92+dx,92+dy,2.2,0,TAU);g.fill()}
+  DOG.img=c;
+}
+buildDog(null);
+{const im=new Image();im.onload=()=>buildDog(im);im.onerror=()=>{};im.src=DOG_SRC||'dog.jpg'}
+let wordsReady=false;
+function buildWordCards(){
+  const sc=3,m=document.createElement('canvas').getContext('2d');m.font='28px '+BODY;
+  for(const d of DEFS){
+    if(!d.word)continue;
+    const w=Math.round(m.measureText(d.name).width+36),h=52;
+    const c=document.createElement('canvas');c.width=w*sc;c.height=h*sc;const g=c.getContext('2d');g.scale(sc,sc);
+    g.fillStyle='#110e12';g.fillRect(0,0,w,h);g.fillStyle='#e4d8b4';g.fillRect(3,3,w-6,h-6);
+    g.fillStyle='#d3c497';g.fillRect(3,3,w-6,9);g.fillStyle='#5e5040';g.fillRect(8,6,26,3);g.fillRect(w-22,6,14,3);
+    g.font='28px '+BODY;g.textAlign='center';g.textBaseline='middle';g.fillStyle='#2b2622';g.fillText(d.name,w/2,h/2+5);
+    d.img=c;d.w=w;d.h=h;
+  }
+  wordsReady=true;
+}
+try{
+  const ready=(document.fonts&&document.fonts.load)?Promise.race([document.fonts.load('28px VT323'),new Promise(r=>setTimeout(r,2500))]):Promise.resolve();
+  ready.catch(()=>{}).then(buildWordCards);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(buildWordCards);
+}catch(e){buildWordCards()}
+
+const TYPE={
+  pro:{name:'prokaryotes',single:'prokaryote',col:'#ffb938',def:'Prokaryotes are cells with NO nucleus. Their DNA floats in the cytoplasm.',partsDef:'Slice every cell part that prokaryotes have. Parts found in BOTH kinds of cells count too!'},
+  euk:{name:'eukaryotes',single:'eukaryote',col:'#4cf0c0',def:'Eukaryotes are cells WITH a nucleus and other membrane-bound organelles.',partsDef:'Slice every cell part that eukaryotes have. Parts found in BOTH kinds of cells count too!'}
+};
+const other=t=>t==='pro'?'euk':'pro';
+const isTarget=d=>d.kind!=='virus'&&!!d.has[G.target];
+const curSet=()=>mode==='rounds'&&G.cfg?G.cfg.set:'mix';
+function targetLabel(){const t=TYPE[G.target];return curSet()==='parts'?'SLICE '+t.single.toUpperCase()+' PARTS':'SLICE '+t.name.toUpperCase()}
+function describe(d){
+  if(d.part)return d.kind==='pro'?'a part found only in <b class="pro">prokaryotes</b>':d.kind==='euk'?'a part found only in <b class="euk">eukaryotes</b>':'a part found in both kinds of cells';
+  return 'a <b class="'+d.kind+'">'+TYPE[d.kind].single+'</b>';
+}
+function targetPhrase(d){const t=TYPE[G.target];return d.part?'parts that <b class="'+G.target+'">'+t.name+'</b> have':'<b class="'+G.target+'">'+t.name+'</b>'}
+function kindTag(d){
+  if(d.kind==='virus')return'<b class="virus">virus</b>';
+  if(d.kind==='both')return'<b>in both</b>';
+  if(d.part)return'<b class="'+d.kind+'">'+TYPE[d.kind].name+' only</b>';
+  return'<b class="'+d.kind+'">'+TYPE[d.kind].single+'</b>';
+}
+function factColor(k){return k==='dog'?'#ffd54a':k==='virus'?'#ff4d5e':k==='both'?'#e8eefc':TYPE[k].col}
+
+/* ---------- difficulty ---------- */
+const ROUNDS=[
+  {set:'parts',target:'pro',quota:8, ts:.6, interval:1.4, wmin:1,wmax:2,virus:0,  tier:1,tp:.6,
+   notes:['Swipe across a cell part to slice it.','Slice a part that belongs to the other kind of cell and you lose a heart. Missing one is okay.','Watch for the bonus pup! Slice the dog to earn slow-motion, then press SPACE to use it.']},
+  {set:'parts',target:'euk',quota:10,ts:.65,interval:1.4, wmin:1,wmax:2,virus:.12,tier:1,tp:.8,
+   notes:['New target: eukaryote parts! Eukaryotes have every part in this round.','New: VIRUSES. Viruses are bombs. Never slice them!']},
+  {set:'parts',target:'pro',quota:10,ts:.75,interval:1.45,wmin:1,wmax:3,virus:.08,tier:2,tp:.55,
+   notes:['Tougher parts this time, like the cell wall and chloroplast.','Remember: DNA, ribosomes, the membrane, cytoplasm, cilia and flagella are in BOTH kinds of cells.','Viruses are still bombs. Never slice them!']},
+  {set:'words',target:'euk',quota:10,ts:.75,interval:1.7, wmin:1,wmax:2,virus:.1, tier:2,tp:.55,
+   notes:['New: WORDS! Slice the names of living things that are eukaryotes.','Look out for tricky names, and for viruses.']},
+  {set:'orgs', target:'pro',quota:10,ts:.8, interval:1.5, wmin:1,wmax:3,virus:.08,tier:1,tp:.55,
+   notes:['Back to pictures: real organisms drawn in pixels.']},
+  {set:'orgs', target:'euk',quota:12,ts:.9, interval:1.5, wmin:1,wmax:3,virus:.1, tier:1,tp:.55,
+   notes:['Eukaryote organisms this time.']},
+  {set:'orgs', target:'pro',quota:12,ts:1.0, interval:1.4, wmin:2,wmax:3,virus:.12,tier:2,tp:.5,
+   notes:['Trickier microbes, and faster!','Some prokaryotes do photosynthesis or live in extreme places.']},
+  {set:'orgs', target:'euk',quota:15,ts:1.2, interval:1.35,wmin:2,wmax:3,virus:.14,tier:2,tp:.5,
+   notes:['Final round. This is the fastest one yet.']}
+];
+const ENDLESS_SWITCH=20;
+function endlessCfg(sw){
+  return{set:'mix',ts:Math.min(1.8,1+.06*sw),interval:Math.max(.8,1.3-.04*sw),wmin:sw>2?2:1,wmax:3,virus:Math.min(.2,.1+.01*sw),tier:2,tp:.5};
+}
+const GRAV=1150,HIT_R=46,SPR=96,SLOW_DUR=6,SLOW_F=.4,MAX_CHARGES=3;
+
+/* ---------- game state ---------- */
+let state='title',mode='rounds',prevState='playing',time=0,hoverMode=store.get('hover',false);
+let unlocked=store.get('unlocked',false)||params.has('unlock');
+let scores=store.get('scores',{rounds:[],endless:[]});
+let G=newGame();
+let trail=[],down=false,last=null;
+const motes=Array.from({length:42},()=>({x:rand(0,W),y:rand(0,H),v:rand(4,16),p:rand(0,6),s:Math.random()<.2?3:2,a:rand(.12,.35)}));
+let attractT=0;
+
+function newGame(){return{score:0,lives:3,combo:0,maxCombo:0,round:0,got:0,quota:0,target:'pro',cfg:null,items:[],pending:[],halves:[],parts:[],floats:[],
+  waveT:1,stats:{correct:0,wrong:0,missed:0},rs:{correct:0,wrong:0,missed:0,best:0,pts:0},wrongLog:{},fact:null,banner:null,flash:0,shake:0,
+  lastHit:-9,chain:0,sw:0,switchT:ENDLESS_SWITCH,elapsed:0,clearT:0,warnSec:99,charges:0,slowT:0,dogT:9}}
+
+/* ---------- canvas sizing ---------- */
+const cv=$('game'),ctx=cv.getContext('2d'),wrap=$('wrap');
+function resize(){
+  const s=Math.min(innerWidth/W,innerHeight/H);
+  wrap.style.transform='scale('+s+')';
+  const k=Math.min(2.5,s*(window.devicePixelRatio||1));
+  cv.width=Math.round(W*k);cv.height=Math.round(H*k);
+}
+addEventListener('resize',resize);resize();
+
+/* ---------- screens ---------- */
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));if(id)$(id).classList.add('on')}
+function toTitle(){
+  state='title';G=newGame();trail=[];down=false;last=null;
+  refreshTitle();showScreen('title');$('bPlay').focus({preventScroll:true});
+}
+function refreshTitle(){
+  $('bEndless').classList.toggle('locked',!unlocked);
+  $('endNote').textContent=unlocked?'Survive as long as you can':'Unlocks after all 8 rounds';
+  $('optSound').checked=soundOn;$('optHover').checked=hoverMode;
+}
+function fmtTime(s){return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0')}
+
+/* ---------- starting games ---------- */
+function startRounds(n){
+  mode='rounds';G=newGame();G.round=clamp(n||0,0,ROUNDS.length-1);G.target=ROUNDS[G.round].target;showIntro('');
+}
+function startEndless(){
+  mode='endless';G=newGame();G.target=Math.random()<.5?'pro':'euk';showIntro('');
+}
+function showIntro(summary){
+  state='intro';trail=[];down=false;last=null;
+  const T=TYPE[G.target],set=mode==='rounds'?ROUNDS[G.round].set:'mix';
+  $('inRound').textContent=mode==='rounds'?'Round '+(G.round+1)+' of '+ROUNDS.length:'Endless mode';
+  $('inTarget').innerHTML=set==='parts'?'Slice the <span class="'+G.target+'">'+T.single+'</span> parts':'Slice the <span class="'+G.target+'">'+T.name+'</span>';
+  $('inDef').textContent=set==='parts'?T.partsDef:set==='mix'?T.def+' For cell parts, slice the parts that kind of cell has.':T.def;
+  let notes;
+  if(mode==='endless'){
+    notes=['Parts, words, and organisms all get mixed together.','The target switches every '+ENDLESS_SWITCH+' seconds, and everything speeds up.','Wrong slices and viruses cost a heart. You have 3 hearts.','Slice the bonus pup for slow-motion. Press SPACE to use it.'];
+  }else{
+    const r=ROUNDS[G.round];
+    notes=r.notes.slice();
+    notes.push('Quota: '+r.quota+' correct slices to clear the round.');
+  }
+  $('inNotes').innerHTML=notes.map(n=>'<li>'+n+'</li>').join('');
+  $('inSummary').innerHTML=summary;
+  $('bGo').textContent=mode==='rounds'?'Start round '+(G.round+1):'Start endless';
+  showScreen('intro');$('bGo').focus({preventScroll:true});sfx.click();
+}
+function announceSub(){
+  const set=curSet(),T=TYPE[G.target];
+  return set==='parts'?'Parts found in BOTH kinds of cells count too!':T.def;
+}
+function resetPlayfield(){G.items=[];G.pending=[];G.halves=[];G.parts=[];G.floats=[];G.banner=null;trail=[];last=null}
+function beginRound(){
+  resetPlayfield();
+  if(mode==='rounds'){
+    const cfg=ROUNDS[G.round];G.cfg=cfg;G.quota=cfg.quota;G.target=cfg.target;
+  }else{G.sw=0;G.switchT=ENDLESS_SWITCH;G.elapsed=0;G.warnSec=99}
+  G.got=0;G.rs={correct:0,wrong:0,missed:0,best:0,pts:0};G.waveT=1.9;G.slowT=0;
+  G.banner={txt:targetLabel(),sub:announceSub(),t:2.6,max:2.6,col:TYPE[G.target].col,size:60};
+  state='playing';showScreen(null);
+}
+const cfgNow=()=>mode==='rounds'?G.cfg:endlessCfg(G.sw);
+
+/* ---------- spawning ---------- */
+function pickFrom(list,used){
+  const fresh=list.filter(d=>!used.has(d.id)),l=fresh.length?fresh:list;
+  return l[Math.floor(Math.random()*l.length)];
+}
+function poolFor(set,tier,wantTarget){
+  return DEFS.filter(d=>d.kind!=='virus'&&d.sets.includes(set)&&d.tier<=tier&&d.img&&(!!d.has[G.target]===wantTarget));
+}
+function virusFor(set){return DEFS.filter(d=>d.kind==='virus'&&d.sets.includes(set)&&d.img)}
+function pickSet(cfg){
+  if(cfg.set!=='mix')return cfg.set;
+  const r=Math.random();
+  return r<.4?'parts':(r<.6&&wordsReady)?'words':'orgs';
+}
+function makeWave(cfg){
+  const n=randInt(cfg.wmin,cfg.wmax),used=new Set(G.items.filter(i=>!i.sliced).map(i=>i.def.id)),defs=[];
+  for(let i=0;i<n;i++){
+    const set=pickSet(cfg);let d;
+    if(Math.random()<cfg.virus&&virusFor(set).length)d=pickFrom(virusFor(set),used);
+    else{let pool=poolFor(set,cfg.tier,Math.random()<cfg.tp);if(!pool.length)pool=poolFor(set,cfg.tier,true);d=pickFrom(pool,used)}
+    used.add(d.id);defs.push(d);
+  }
+  if(!defs.some(isTarget))defs[0]=pickFrom(poolFor(pickSet(cfg),cfg.tier,true),used);
+  defs.forEach((d,i)=>G.pending.push({def:d,d:i*.16}));
+}
+function launch(def,att){
+  const x=att?rand(500,900):rand(110,850),word=!!def.word;
+  const it={def,x,y:H+def.h/2+10,
+    vx:att?rand(-130,30):(W/2-x)*rand(.15,.45)+rand(-60,60),
+    vy:-rand(960,1080),rot:word?rand(-.12,.12):rand(0,TAU),spin:word?0:rand(-2.6,2.6)*(Math.random()<.5?1:-1)*.7,sliced:false};
+  G.items.push(it);return it;
+}
+
+/* ---------- slicing ---------- */
+function segHit(a,b,cx,cy,r){
+  const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;
+  let t=l2?((cx-a.x)*dx+(cy-a.y)*dy)/l2:0;t=clamp(t,0,1);
+  const px=a.x+t*dx,py=a.y+t*dy;return[(px-cx)*(px-cx)+(py-cy)*(py-cy)<=r*r,t];
+}
+function hitItem(a,b,it){
+  const d=it.def;
+  if(d.word){
+    const hw=d.w/2+6,hh=d.h/2+8,steps=Math.max(2,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/6));
+    for(let i=0;i<=steps;i++){const t=i/steps,px=a.x+(b.x-a.x)*t,py=a.y+(b.y-a.y)*t;if(Math.abs(px-it.x)<=hw&&Math.abs(py-it.y)<=hh)return[true,t]}
+    return[false,0];
+  }
+  return segHit(a,b,it.x,it.y,HIT_R*d.w/96);
+}
+function sliceSegment(a,b){
+  if(state!=='playing')return;
+  const dx=b.x-a.x,dy=b.y-a.y;if(dx*dx+dy*dy<9)return;
+  const ang=Math.atan2(dy,dx),hits=[];
+  for(const it of G.items){if(it.sliced)continue;const r=hitItem(a,b,it);if(r[0])hits.push([r[1],it])}
+  hits.sort((p,q)=>p[0]-q[0]);
+  for(const h of hits){if(state!=='playing')break;sliceItem(h[1],ang)}
+}
+function sliceItem(it,ang){
+  it.sliced=true;
+  const nx=-Math.sin(ang),ny=Math.cos(ang);
+  for(const side of[1,-1])G.halves.push({def:it.def,x:it.x,y:it.y,vx:it.vx*.5+nx*side*150,vy:it.vy*.4+ny*side*150-70,rot:it.rot,spin:it.spin+side*rand(1,3),cut:ang-it.rot,side,life:1.4});
+  for(let i=0;i<12;i++)G.parts.push({x:it.x+rand(-10,10),y:it.y+rand(-10,10),vx:rand(-220,220),vy:rand(-260,120),life:rand(.4,.8),c:it.def.col,s:rand(3,6)});
+  if(state!=='playing')return;
+  sfx.slice();
+  const d=it.def;
+  if(d.kind==='dog'){bonusDog(it);return}
+  if(d.kind==='virus'){sfx.boom();mistake(it,'virus')}
+  else if(isTarget(d))correct(it);
+  else{sfx.bad();mistake(it,'wrong')}
+}
+function useSlow(){
+  if(state!=='playing')return;
+  if(G.slowT>0)return;
+  if(G.charges<=0){sfx.bad();G.floats.push({x:W/2,y:H/2,t:0,txt:'No slow-mo yet. Slice the bonus pup!',col:'#ffd54a',size:16});return}
+  G.charges--;G.slowT=SLOW_DUR;sfx.slow();
+  G.floats.push({x:W/2,y:H/2-60,t:0,txt:'SLOW MOTION!',col:'#9fd8ff',size:30});
+}
+function bonusDog(it){
+  G.charges=Math.min(MAX_CHARGES,G.charges+1);G.fact=DOG;sfx.bonus();
+  G.floats.push({x:it.x,y:it.y-34,t:0,txt:'Bonus pup! +1 slow-mo',col:'#ffd54a',size:20});
+  G.floats.push({x:it.x,y:it.y-8,t:0,txt:'Press SPACE',col:'#ffffff',size:14});
+  for(let i=0;i<16;i++)G.parts.push({x:it.x+rand(-14,14),y:it.y+rand(-14,14),vx:rand(-260,260),vy:rand(-320,100),life:rand(.5,1),c:'#ffd54a',s:rand(4,7)});
+}
+function correct(it){
+  G.combo++;G.rs.correct++;G.stats.correct++;G.maxCombo=Math.max(G.maxCombo,G.combo);G.rs.best=Math.max(G.rs.best,G.combo);
+  const mult=Math.min(5,1+Math.floor(G.combo/3));
+  G.chain=(time-G.lastHit<.3)?G.chain+1:1;G.lastHit=time;
+  let pts=10*mult;if(G.chain>=2)pts+=10*(G.chain-1);
+  G.score+=pts;G.rs.pts+=pts;G.got++;G.fact=it.def;
+  G.floats.push({x:it.x,y:it.y-30,t:0,txt:'+'+pts,col:'#ffffff',size:22});
+  if(G.chain>=2)G.floats.push({x:it.x,y:it.y-58,t:0,txt:G.chain===2?'Double slice!':G.chain===3?'Triple slice!':'Multi slice!',col:'#fff3a0',size:15});
+  if(G.combo>0&&G.combo%3===0)G.floats.push({x:it.x,y:it.y+8,t:0,txt:'Combo x'+mult,col:'#fff3a0',size:14});
+  sfx.good(G.combo);
+  if(mode==='rounds'&&G.got>=G.quota)startClear();
+}
+function startClear(){
+  state='clear';G.clearT=1.5;G.score+=100;G.rs.pts+=100;G.pending=[];
+  G.banner={txt:'Round clear! +100',t:1.5,col:'#ffffff',max:1.5,size:50};sfx.clear();
+}
+function afterClear(){
+  const r=G.rs,acc=Math.round(100*r.correct/Math.max(1,r.correct+r.wrong));
+  if(G.round>=ROUNDS.length-1){gameOver('win');return}
+  const sum='<div class="round-sum"><p class="small">Round '+(G.round+1)+' cleared</p><div class="stats"><div>Accuracy<b>'+acc+'%</b></div><div>Best combo<b>'+r.best+'</b></div><div>Score<b>'+G.score+'</b></div><div>Hearts<b>'+Math.min(3,G.lives+1)+'</b></div></div><p class="small">You earn a heart back after each round (max 3).</p></div>';
+  G.round++;G.lives=Math.min(3,G.lives+1);G.target=ROUNDS[G.round].target;
+  showIntro(sum);
+}
+function mistake(it,why){
+  state='mistake';G.lives--;G.combo=0;G.chain=0;G.stats.wrong++;G.rs.wrong++;G.flash=.5;G.shake=reduceMotion?0:.3;
+  const d=it.def;G.wrongLog[d.id]=(G.wrongLog[d.id]||0)+1;
+  const c=$('mkSprite').getContext('2d');c.imageSmoothingEnabled=!!d.smooth;c.clearRect(0,0,128,128);{const sc=Math.min(116/d.img.width,116/d.img.height),dw=d.img.width*sc,dh=d.img.height*sc;c.drawImage(d.img,64-dw/2,64-dh/2,dw,dh)}
+  if(why==='virus'){
+    $('mkTitle').innerHTML='<span class="virus">Bomb!</span> That was a '+d.name+'.';
+    $('mkLine').textContent='A virus is not a cell, so it is neither a prokaryote nor a eukaryote. Viruses are the bombs. Leave them alone.';
+  }else{
+    $('mkTitle').textContent='That was '+d.name+'.';
+    $('mkLine').innerHTML='This one is '+describe(d)+', but this round you are slicing '+targetPhrase(d)+'.';
+  }
+  $('mkWhy').textContent=d.why;
+  $('mkLives').textContent=G.lives>0?'Hearts left: '+G.lives:'No hearts left.';
+  $('bMk').textContent=G.lives>0?'Keep slicing':'See results';
+  showScreen('mistake');$('bMk').focus({preventScroll:true});
+}
+function dismissMistake(){
+  if(G.lives<=0){gameOver('dead');return}
+  G.items=[];G.pending=[];G.waveT=1;trail=[];last=null;
+  state='playing';showScreen(null);
+}
+
+/* ---------- endless target switching ---------- */
+function doSwitch(){
+  G.sw++;G.target=other(G.target);G.switchT=ENDLESS_SWITCH;G.warnSec=99;
+  for(const it of G.items){if(!it.sliced){for(let i=0;i<8;i++)G.parts.push({x:it.x,y:it.y,vx:rand(-160,160),vy:rand(-160,160),life:.5,c:'#e8eefc',s:4})}}
+  G.items=[];G.pending=[];G.waveT=1.5;
+  G.banner={txt:targetLabel(),sub:'The target switched!',t:2.4,max:2.4,col:TYPE[G.target].col,size:60};sfx.swap();
+}
+
+/* ---------- game over ---------- */
+function qualifies(m,s){const l=scores[m];return s>0&&(l.length<10||s>l[l.length-1].s)}
+function addScore(m,n,s,x){scores[m].push({n,s,x});scores[m].sort((a,b)=>b.s-a.s);scores[m]=scores[m].slice(0,10);store.set('scores',scores)}
+let pendingEntry=null;
+function gameOver(reason){
+  state='over';trail=[];down=false;G.items=[];G.pending=[];sfx.over();
+  const win=reason==='win';
+  if(win){unlocked=true;store.set('unlocked',true);sfx.clear()}
+  const acc=Math.round(100*G.stats.correct/Math.max(1,G.stats.correct+G.stats.wrong));
+  $('ovTitle').textContent=win?'All '+ROUNDS.length+' rounds cleared!':'Game over';
+  if(mode==='rounds')$('ovLine').textContent=win?'Endless mode is now unlocked on the title screen.':'You reached round '+(G.round+1)+' of '+ROUNDS.length+'.';
+  else $('ovLine').textContent='You lasted '+fmtTime(G.elapsed)+' and survived '+G.sw+' target switch'+(G.sw===1?'':'es')+'.';
+  $('ovStats').innerHTML='<div>Score<b>'+G.score+'</b></div><div>Accuracy<b>'+acc+'%</b></div><div>Best combo<b>'+G.maxCombo+'</b></div><div>Correct<b>'+G.stats.correct+'</b></div>';
+  const wl=Object.keys(G.wrongLog).map(id=>DEFS.find(d=>d.id===id)).sort((a,b)=>G.wrongLog[b.id]-G.wrongLog[a.id]).slice(0,3);
+  $('ovReview').innerHTML=wl.length?'<p class="small">Brush up on these:</p><ul>'+wl.map(d=>'<li><b>'+d.name+'</b> ('+kindTag(d)+') <span class="why">'+d.why+'</span></li>').join('')+'</ul>':'<p class="small">No mistakes to review. Nice slicing!</p>';
+  const m=mode;pendingEntry=qualifies(m,G.score)?{m,s:G.score,x:m==='rounds'?(win?'Cleared all':'Round '+(G.round+1)):fmtTime(G.elapsed)}:null;
+  $('ovEntry').hidden=!pendingEntry;$('ovInit').value='';
+  showScreen('over');
+  if(pendingEntry)$('ovInit').focus({preventScroll:true});else $('bAgain').focus({preventScroll:true});
+}
+function saveEntry(){
+  if(!pendingEntry)return;
+  const n=($('ovInit').value||'AAA').toUpperCase().replace(/[^A-Z0-9]/g,'').padEnd(3,'-').slice(0,3);
+  addScore(pendingEntry.m,n,pendingEntry.s,pendingEntry.x);
+  const m=pendingEntry.m,idx=scores[m].findIndex(e=>e.n===n&&e.s===pendingEntry.s);
+  pendingEntry=null;showScores(m,idx);
+}
+let scoreTab='rounds';
+function showScores(m,hi){
+  scoreTab=m;state='scores';
+  $('tRounds').setAttribute('aria-pressed',m==='rounds');$('tEndless').setAttribute('aria-pressed',m==='endless');
+  const l=scores[m];
+  $('scBody').innerHTML=l.length?'<table class="sc"><tr><th>#</th><th>Initials</th><th class="s">Score</th><th>'+(m==='rounds'?'Result':'Time')+'</th></tr>'+
+    l.map((e,i)=>'<tr'+(i===hi?' class="me"':'')+'><td>'+(i+1)+'</td><td class="n">'+e.n+'</td><td class="s">'+e.s+'</td><td>'+e.x+'</td></tr>').join('')+'</table>':'<p class="empty">No scores yet. Be the first!</p>';
+  showScreen('scores');$('bScBack').focus({preventScroll:true});
+}
+
+/* ---------- pause ---------- */
+function pauseGame(){if(state!=='playing')return;prevState=state;state='pause';trail=[];down=false;showScreen('pause');$('bResume').focus({preventScroll:true})}
+function resumeGame(){if(state!=='pause')return;state='playing';last=null;trail=[];showScreen(null)}
+
+/* ---------- input ---------- */
+function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
+cv.addEventListener('pointerdown',e=>{
+  ac();const p=pos(e);
+  if(state==='playing'&&Math.hypot(p.x-(W-26),p.y-(H-17))<20){pauseGame();return}
+  if(state==='playing'&&p.x>=16&&p.x<=206&&p.y>=H-90&&p.y<=H-44){useSlow();return}
+  down=true;last=p;trail=[{x:p.x,y:p.y,t:performance.now()}];
+  try{cv.setPointerCapture(e.pointerId)}catch(err){}
+});
+cv.addEventListener('pointermove',e=>{
+  const p=pos(e);
+  if(!(down||(hoverMode&&state==='playing'))){last=p;return}
+  if(!last)last=p;
+  sliceSegment(last,p);last=p;trail.push({x:p.x,y:p.y,t:performance.now()});if(trail.length>40)trail.shift();
+});
+const endDrag=()=>{down=false};
+cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
+addEventListener('keydown',e=>{
+  if(e.code==='Space'&&state==='playing'){e.preventDefault();useSlow();return}
+  if(e.key==='Escape'||e.key==='p'||e.key==='P'){
+    if(e.target&&e.target.tagName==='INPUT')return;
+    if(state==='playing')pauseGame();else if(state==='pause')resumeGame();
+  }
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseGame()});
+
+$('bPlay').onclick=()=>{ac();startRounds(params.has('start')?parseInt(params.get('start'))-1:0)};
+$('bEndless').onclick=()=>{ac();if(unlocked)startEndless();else{sfx.bad();$('endNote').textContent='Clear all 8 rounds first!'}};
+$('bScores').onclick=()=>{ac();showScores('rounds')};
+$('bGo').onclick=()=>{ac();beginRound()};
+$('bMk').onclick=dismissMistake;
+$('bResume').onclick=resumeGame;
+$('bQuit').onclick=toTitle;
+$('bAgain').onclick=()=>{mode==='rounds'?startRounds(0):startEndless()};
+$('bToTitle').onclick=toTitle;
+$('bSave').onclick=saveEntry;
+$('ovInit').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'')});
+$('ovInit').addEventListener('keydown',e=>{if(e.key==='Enter')saveEntry()});
+$('tRounds').onclick=()=>showScores('rounds');
+$('tEndless').onclick=()=>showScores('endless');
+$('bScBack').onclick=toTitle;
+$('bScClear').onclick=()=>{if(confirm('Clear all '+(scoreTab==='rounds'?'8-round':'Endless')+' high scores on this computer?')){scores[scoreTab]=[];store.set('scores',scores);showScores(scoreTab)}};
+$('optSound').onchange=e=>{soundOn=e.target.checked;store.set('sound',soundOn);if(soundOn)sfx.click()};
+$('optHover').onchange=e=>{hoverMode=e.target.checked;store.set('hover',hoverMode)};
+
+/* ---------- update ---------- */
+function stepItems(d,interactive){
+  for(const it of G.items){
+    it.vy+=GRAV*d;it.x+=it.vx*d;it.y+=it.vy*d;it.rot+=it.spin*d;
+    if(!it.sliced&&it.vy>0&&it.y>H+SPR){
+      it.sliced=true;
+      if(interactive&&isTarget(it.def)){
+        G.combo=0;G.chain=0;G.stats.missed++;G.rs.missed++;
+        G.floats.push({x:clamp(it.x,60,W-60),y:H-60,t:0,txt:'missed',col:'#ff8a96',size:14});
+      }
+    }
+  }
+  G.items=G.items.filter(it=>!it.sliced);
+}
+function stepFx(dt){
+  for(const h of G.halves){h.vy+=GRAV*.9*dt;h.x+=h.vx*dt;h.y+=h.vy*dt;h.rot+=h.spin*dt;h.life-=dt}
+  G.halves=G.halves.filter(h=>h.life>0&&h.y<H+100);
+  for(const p of G.parts){p.vy+=900*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}
+  G.parts=G.parts.filter(p=>p.life>0);
+  for(const f of G.floats)f.t+=dt;
+  G.floats=G.floats.filter(f=>f.t<1);
+  if(G.banner){G.banner.t-=dt;if(G.banner.t<=0)G.banner=null}
+  if(G.flash>0)G.flash-=dt;if(G.shake>0)G.shake-=dt;
+}
+function attract(dt){
+  attractT-=dt;
+  if(attractT<=0){
+    const all=DEFS.filter(d=>d.img&&(d.kind!=='virus'||Math.random()<.2));
+    launch(all[Math.floor(Math.random()*all.length)],true);attractT=rand(.7,1.3);
+  }
+  for(const it of G.items){
+    if(!it.sliced&&it.vy>0&&it.y<380&&Math.random()<dt*3)sliceItem(it,rand(-.8,.8)+(Math.random()<.5?0:Math.PI));
+  }
+}
+function update(dt){
+  time+=dt;
+  for(const m of motes){m.y-=m.v*dt;m.x+=Math.sin(time*.5+m.p)*8*dt;if(m.y<-4){m.y=H+4;m.x=rand(0,W)}}
+  if(state==='title'||state==='scores'){attract(dt);stepItems(dt,false)}
+  else if(state==='playing'){
+    const cfg=cfgNow();
+    const slow=G.slowT>0;if(slow){G.slowT-=dt;if(G.slowT<=0){G.slowT=0;sfx.slowEnd()}}
+    const d=dt*cfg.ts*(slow?SLOW_F:1);
+    G.dogT-=dt;
+    if(G.dogT<=0&&!G.items.some(i=>i.def.kind==='dog'&&!i.sliced)){launch(DOG,false);G.dogT=rand(24,36)}
+    for(const p of G.pending){p.d-=d;if(p.d<=0){launch(p.def,false);p.done=true}}
+    G.pending=G.pending.filter(p=>!p.done);
+    G.waveT-=d;
+    if(!G.banner&&G.items.filter(i=>!i.sliced).length===0&&G.pending.length===0&&G.waveT>.4)G.waveT=.4;
+    if(G.waveT<=0){makeWave(cfg);G.waveT=cfg.interval*rand(.85,1.15)}
+    stepItems(d,true);
+    if(mode==='endless'){
+      G.elapsed+=dt;G.switchT-=dt;
+      const ws=Math.ceil(G.switchT);
+      if(G.switchT<=3&&ws<G.warnSec&&ws>0){G.warnSec=ws;sfx.warn()}
+      if(G.switchT<=0)doSwitch();
+    }
+  }
+  else if(state==='clear'){
+    stepItems(dt,false);G.clearT-=dt;if(G.clearT<=0)afterClear();
+  }
+  if(state!=='pause'&&state!=='mistake')stepFx(dt);
+  else if(state==='mistake'){if(G.flash>0)G.flash-=dt;if(G.shake>0)G.shake-=dt}
+}
+
+/* ---------- render ---------- */
+function drawBG(){
+  const g=ctx.createRadialGradient(W/2,H/2,40,W/2,H/2,560);
+  g.addColorStop(0,'#1a2658');g.addColorStop(.55,'#0b1233');g.addColorStop(1,'#04061a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(130,155,255,.07)';ctx.lineWidth=2;
+  for(const r of[200,330,470]){ctx.beginPath();ctx.arc(W/2,H/2,r,0,TAU);ctx.stroke()}
+  for(const m of motes){ctx.fillStyle='rgba(180,200,255,'+m.a+')';ctx.fillRect(Math.round(m.x),Math.round(m.y),m.s,m.s)}
+  ctx.fillStyle='rgba(150,170,255,.28)';
+  for(let y=0;y<=H;y+=16){const long=(y/16)%5===0;ctx.fillRect(0,y,long?14:7,2)}
+}
+function drawItem(it){
+  const d=it.def,rad=Math.max(d.w,d.h)*.67;
+  const gl=ctx.createRadialGradient(it.x,it.y,6,it.x,it.y,rad);
+  if(d.kind==='virus'){const a=.18+.1*Math.sin(time*8);gl.addColorStop(0,'rgba(255,77,94,'+(a+.12)+')');gl.addColorStop(1,'rgba(255,77,94,0)')}
+  else if(d.kind==='dog'){const a=.3+.15*Math.sin(time*6);gl.addColorStop(0,'rgba(255,213,74,'+a+')');gl.addColorStop(1,'rgba(255,213,74,0)')}
+  else{gl.addColorStop(0,'rgba(200,215,255,.16)');gl.addColorStop(1,'rgba(200,215,255,0)')}
+  ctx.fillStyle=gl;ctx.fillRect(it.x-rad,it.y-rad,rad*2,rad*2);
+  ctx.save();ctx.translate(it.x,it.y);ctx.rotate(it.rot);ctx.imageSmoothingEnabled=!!d.smooth;
+  ctx.drawImage(d.img,-d.w/2,-d.h/2,d.w,d.h);ctx.restore();ctx.imageSmoothingEnabled=false;
+  if(!d.word){
+    ctx.font='20px '+BODY;ctx.textAlign='center';ctx.textBaseline='middle';
+    const w=ctx.measureText(d.name).width,ly=Math.round(it.y+d.h/2+3);
+    ctx.fillStyle='rgba(5,8,22,.82)';ctx.fillRect(Math.round(it.x-w/2-6),ly,Math.round(w+12),22);
+    ctx.fillStyle=d.kind==='virus'?'#ff9aa4':d.kind==='dog'?'#ffd54a':'#e8eefc';ctx.fillText(d.name,it.x,ly+11);
+  }
+}
+function drawHalf(h){
+  const d=h.def;
+  ctx.save();ctx.translate(h.x,h.y);ctx.globalAlpha=clamp(h.life/.6,0,1);
+  ctx.rotate(h.rot);ctx.rotate(h.cut);
+  ctx.beginPath();ctx.rect(-170,h.side>0?0:-170,340,170);ctx.clip();
+  ctx.rotate(-h.cut);ctx.imageSmoothingEnabled=!!d.smooth;ctx.drawImage(d.img,-d.w/2,-d.h/2,d.w,d.h);
+  ctx.restore();ctx.imageSmoothingEnabled=false;
+}
+function drawHeart(x,y,s,full){
+  const M=['.XX.XX.','XXXXXXX','XXXXXXX','.XXXXX.','..XXX..','...X...'];
+  for(let r=0;r<M.length;r++)for(let c=0;c<7;c++)if(M[r][c]==='X'){
+    ctx.fillStyle=full?((r===1&&c===1)?'#ffb3c1':'#ff4d6d'):'#242b5c';ctx.fillRect(x+c*s,y+r*s,s,s);
+  }
+}
+function fitFont(txt,maxW,font,size,min){
+  let s=size;ctx.font=s+'px '+font;
+  while(s>min&&ctx.measureText(txt).width>maxW){s--;ctx.font=s+'px '+font}
+  return s;
+}
+function drawHUD(){
+  const grad=ctx.createLinearGradient(0,0,0,100);grad.addColorStop(0,'rgba(5,8,22,.92)');grad.addColorStop(1,'rgba(5,8,22,0)');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,100);
+  for(let i=0;i<3;i++)drawHeart(20+i*34,14,4,i<G.lives);
+  ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font='12px '+HEAD;ctx.fillStyle='#8d9bc7';
+  ctx.fillText(mode==='rounds'?'Round '+(G.round+1)+'/'+ROUNDS.length:'Endless '+fmtTime(G.elapsed),20,58);
+  // target pill (big)
+  const tc=TYPE[G.target].col,px=205,py=8,pw=550,ph=60;
+  const warn=mode==='endless'&&G.switchT<=3&&Math.floor(time*5)%2===0;
+  ctx.fillStyle='rgba(5,8,22,.94)';ctx.fillRect(px,py,pw,ph);
+  ctx.lineWidth=4;ctx.strokeStyle=warn?'#ffffff':tc;ctx.strokeRect(px+2,py+2,pw-4,ph-4);
+  const ix=px+36,iy=py+ph/2;
+  ctx.strokeStyle=tc;ctx.lineWidth=3;ctx.beginPath();ctx.arc(ix,iy,17,0,TAU);ctx.stroke();
+  if(G.target==='euk'){ctx.fillStyle=tc;ctx.beginPath();ctx.arc(ix,iy,7,0,TAU);ctx.fill()}
+  else{ctx.beginPath();ctx.moveTo(ix-10,iy+1);ctx.lineTo(ix-4,iy-6);ctx.lineTo(ix+2,iy+4);ctx.lineTo(ix+6,iy-4);ctx.lineTo(ix+10,iy);ctx.stroke()}
+  ctx.fillStyle=tc;ctx.textAlign='center';ctx.textBaseline='middle';
+  {const lab=targetLabel(),fs=fitFont(lab,pw-110,HEAD,30,12);ctx.font='700 '+fs+'px '+HEAD;ctx.fillText(lab,px+pw/2+28,py+ph/2+2)}
+  // progress / timer bar
+  const bx=px+10,by=py+ph+8,bw=pw-110;
+  let frac,lab2;
+  if(mode==='rounds'){frac=G.got/G.quota;lab2=G.got+'/'+G.quota}
+  else{frac=clamp(G.switchT/ENDLESS_SWITCH,0,1);lab2='Switch '+Math.max(0,Math.ceil(G.switchT))+'s'}
+  ctx.fillStyle='rgba(255,255,255,.14)';ctx.fillRect(bx,by,bw,10);
+  ctx.fillStyle=tc;ctx.fillRect(bx,by,bw*clamp(frac,0,1),10);
+  ctx.textAlign='right';ctx.textBaseline='alphabetic';ctx.font='14px '+HEAD;ctx.fillStyle='#e8eefc';ctx.fillText(lab2,px+pw-10,by+11);
+  // score + combo
+  const mult=Math.min(5,1+Math.floor(G.combo/3));
+  ctx.textAlign='right';ctx.fillStyle='#e8eefc';ctx.font='700 28px '+HEAD;ctx.fillText(String(G.score).padStart(6,'0'),W-20,38);
+  ctx.font='13px '+HEAD;ctx.fillStyle=mult>1?'#fff3a0':'#8d9bc7';ctx.fillText('Combo '+G.combo+'  x'+mult,W-20,60);
+  const filled=mult>=5?3:G.combo%3;
+  for(let i=0;i<3;i++){ctx.fillStyle=i<filled?'#fff3a0':'#2b3670';ctx.fillRect(W-20-3*14+i*14+2,68,11,5)}
+  // bottom fact bar
+  ctx.fillStyle='rgba(5,8,22,.9)';ctx.fillRect(0,H-34,W,34);ctx.fillStyle='rgba(140,160,255,.35)';ctx.fillRect(0,H-34,W,2);
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  let txt,mc='#8d9bc7';
+  if(G.fact){txt=G.fact.name+': '+G.fact.why;mc=factColor(G.fact.kind)}
+  else txt=curSet()==='parts'?TYPE[G.target].partsDef:TYPE[G.target].def;
+  fitFont(txt,W-110,BODY,21,13);
+  ctx.fillStyle=mc;ctx.fillRect(16,H-24,8,14);ctx.fillStyle='#e8eefc';ctx.fillText(txt,34,H-16);
+  drawSlowBadge();
+  // pause icon
+  ctx.fillStyle='#8d9bc7';ctx.fillRect(W-32,H-25,5,16);ctx.fillRect(W-23,H-25,5,16);
+}
+function drawSlowBadge(){
+  const x=16,y=H-90,w=190,h=46,on=G.charges>0||G.slowT>0;
+  ctx.save();ctx.globalAlpha=on?1:.45;
+  ctx.fillStyle='rgba(5,8,22,.92)';ctx.fillRect(x,y,w,h);
+  ctx.lineWidth=3;ctx.strokeStyle=G.slowT>0?'#9fd8ff':'#ffd54a';ctx.strokeRect(x+1.5,y+1.5,w-3,h-3);
+  ctx.fillStyle='#ffd54a';
+  const px=x+28,py=y+h/2;
+  ctx.beginPath();ctx.ellipse(px,py+5,9,7,0,0,TAU);ctx.fill();
+  for(const[dx,dy]of[[-11,-3],[-4,-9],[4,-9],[11,-3]]){ctx.beginPath();ctx.arc(px+dx,py+dy,4,0,TAU);ctx.fill()}
+  ctx.fillStyle='#e8eefc';ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='700 22px '+HEAD;ctx.fillText('x'+G.charges,x+54,y+h/2-8);
+  if(G.slowT>0){
+    ctx.font='12px '+HEAD;ctx.fillStyle='#9fd8ff';ctx.fillText('SLOW-MO',x+54,y+h/2+11);
+    ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x+122,y+h/2+6,60,8);ctx.fillStyle='#9fd8ff';ctx.fillRect(x+122,y+h/2+6,60*clamp(G.slowT/SLOW_DUR,0,1),8);
+  }else{
+    ctx.font='12px '+HEAD;ctx.fillStyle=(G.charges>0&&Math.floor(time*3)%2===0)?'#ffffff':'#ffd54a';ctx.fillText(G.charges>0?'Press SPACE':'Slice the pup',x+54,y+h/2+11);
+  }
+  ctx.restore();
+}
+function drawBanner(){
+  const b=G.banner;if(!b)return;
+  const a=clamp(Math.min(b.t,b.max-b.t)/.3,0,1),size=b.size||44;
+  const bh=Math.round(size*1.5+(b.sub?44:0)+10),by=Math.round(H/2-bh/2-20);
+  ctx.save();ctx.globalAlpha=a;
+  ctx.fillStyle='rgba(5,8,22,.9)';ctx.fillRect(0,by,W,bh);
+  ctx.fillStyle=b.col;ctx.fillRect(0,by,W,5);ctx.fillRect(0,by+bh-5,W,5);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  const fs=fitFont(b.txt,W-60,HEAD,size,16);ctx.font='700 '+fs+'px '+HEAD;
+  const ty=by+(b.sub?bh/2-18:bh/2);
+  ctx.fillStyle='#000';ctx.fillText(b.txt,W/2+4,ty+4);ctx.fillStyle=b.col;ctx.fillText(b.txt,W/2,ty);
+  if(b.sub){fitFont(b.sub,W-80,BODY,28,15);ctx.fillStyle='#e8eefc';ctx.fillText(b.sub,W/2,by+bh-30)}
+  ctx.restore();
+}
+function drawTrail(){
+  const now=performance.now();trail=trail.filter(p=>now-p.t<230);
+  if(trail.length<2)return;
+  ctx.lineCap='round';
+  for(let i=1;i<trail.length;i++){
+    const a=trail[i-1],b=trail[i],age=(now-b.t)/230;
+    ctx.strokeStyle='rgba(140,170,255,'+(.35*(1-age))+')';ctx.lineWidth=(1-age)*16;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,'+(1-age)+')';ctx.lineWidth=(1-age)*7;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  }
+}
+function render(){
+  const k=cv.width/W;ctx.setTransform(k,0,0,k,0,0);ctx.imageSmoothingEnabled=false;
+  drawBG();
+  ctx.save();
+  if(G.shake>0&&!reduceMotion)ctx.translate(rand(-5,5),rand(-5,5));
+  for(const it of G.items)if(!it.sliced)drawItem(it);
+  for(const h of G.halves)drawHalf(h);
+  for(const p of G.parts){ctx.globalAlpha=clamp(p.life*2,0,1);ctx.fillStyle=p.c;ctx.fillRect(Math.round(p.x),Math.round(p.y),p.s,p.s)}
+  ctx.globalAlpha=1;
+  for(const f of G.floats){
+    ctx.globalAlpha=clamp(1-f.t,0,1);ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 '+f.size+'px '+HEAD;
+    ctx.fillStyle='#000';ctx.fillText(f.txt,f.x+2,f.y-f.t*50+2);ctx.fillStyle=f.col;ctx.fillText(f.txt,f.x,f.y-f.t*50);
+  }
+  ctx.globalAlpha=1;ctx.restore();
+  if(G.slowT>0&&state==='playing'){const sg=ctx.createRadialGradient(W/2,H/2,H*.25,W/2,H/2,H*.85);sg.addColorStop(0,'rgba(90,150,255,0)');sg.addColorStop(1,'rgba(90,150,255,.38)');ctx.fillStyle=sg;ctx.fillRect(0,0,W,H);ctx.fillStyle='rgba(90,150,255,.07)';ctx.fillRect(0,0,W,H)}
+  if(state==='playing'||state==='title'||state==='scores')drawTrail();
+  if(state==='playing'||state==='clear'||state==='mistake'||state==='pause'){drawHUD();if(state==='playing'||state==='clear')drawBanner()}
+  if(G.flash>0){ctx.fillStyle='rgba(255,60,80,'+clamp(G.flash*.6,0,.35)+')';ctx.fillRect(0,0,W,H)}
+}
+
+let lastT=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-lastT)/1000);lastT=now;
+  update(dt);render();requestAnimationFrame(frame);
+}
+refreshTitle();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
